@@ -1,4 +1,4 @@
-### Copy from CGR RANseq snakemake
+### Copy from CGR ChernobylThyroidCancer-RNAseq snakemake file 
 
 ```
 rule star_index:
