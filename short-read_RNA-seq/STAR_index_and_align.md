@@ -33,3 +33,51 @@ rule star_align:
           """
 
 ```
+
+#### ChiaHan's script for doing indexing and aligning in CCAD2
+
+```
+#!/bin/bash
+
+ml star/2.7.10b 
+
+
+ANNO=gencode.v39.annotation.gtf
+REF=references_Homo_sapiens_assembly38_noALT_noHLA_noDecoy.fasta 
+
+#echo start STAR
+#
+# STAR --runThreadN 24 --runMode genomeGenerate\
+# --genomeDir star_index --sjdbGTFfile ${ANNO} --sjdbOverhang 149 --genomeFastaFiles ${REF}
+#
+#echo fin generateding index
+
+
+
+# L1 to L8, get the fastq files and save as txt of list of fastq files
+
+for i in {1..8}
+do
+ls /DCEG/Projects/DataDelivery/Prokunina/TP0325-RS7-Urothelial-Samples-RNA-seq/250410_LH00324_0032_A22NLVTLT3/L${i}/Project_TP0325-RS7/Sample*/*R1*_001.fastq.gz >> fastqR1.txt
+done
+
+
+# Use the txt above to get the file of _R2 and do star alignment
+
+cat fastqR1.txt | while read i
+do
+sample_name=$(basename "$(dirname "$i")" | cut -d- -f1)
+echo "start $sample_name"
+
+fastqR1=`echo $i`
+fastqR2=`echo $i | sed 's/_R1_/_R2_/g'`
+
+STAR --runThreadN 24 --genomeDir star_index_hg38_150bp --readFilesIn ${fastqR1} ${fastqR2} --outFileNamePrefix Align_results_hg38/${sample_name}\
+ --readFilesCommand zcat --sjdbGTFfile ${ANNO} --sjdbOverhang 149\
+ --quantMode GeneCounts --outSAMtype BAM SortedByCoordinate --twopassMode Basic &&  echo finfin ${sample_name}
+
+done
+
+
+```
+
