@@ -6,7 +6,9 @@
   
   fastq files delivederd from CGR with QC sheets etc. the location is in T-drive: 
   `T:\DCEG\Projects\DataDelivery\Prokunina\TP0325-RS7-Urothelial-Samples-RNA-seq`
-  sample: 116 sample described in `Sample_table.md`. The RNA-seq QC sheet, `114` sample
+  
+  sample: 116 sample described in `Sample_table.md`.
+  The RNA-seq QC sheet, `114` sample
   read length: 150bp
 
 - Code
