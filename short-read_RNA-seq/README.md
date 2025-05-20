@@ -9,7 +9,10 @@
 
 - Code
   following GTEx RNA-seq piepline: https://github.com/broadinstitute/gtex-pipeline/tree/master/rnaseq
-  or searching CGR github to see if there are good built piepline 
+  or searching CGR github to see if there are good built piepline
+
+  Following CGR pipeline, do STAR indexing and alignment, the script name `star_index_and_align.md`
+  
   STAR alignmetn
   RSEM to generated TPM
   RseQC to QC
