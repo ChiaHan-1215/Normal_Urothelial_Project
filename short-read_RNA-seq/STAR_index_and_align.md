@@ -80,4 +80,44 @@ done
 
 
 ```
+Once the alignment is complete, do the remove duplication and RSEM to calcuate TPM
 
+```
+# remove duplication
+
+MarkDuplicates \
+    I=/data/star_out/${sample_id}.Aligned.sortedByCoord.out.patched.bam \
+    O=Aligned.sortedByCoord.out.patched.md.md.bam \
+    PROGRAM_RECORD_ID=null \
+    MAX_RECORDS_IN_RAM=500000 \
+    SORTING_COLLECTION_SIZE_RATIO=0.25 \
+    TMP_DIR=/data \
+    M=${sample_id}.Aligned.sortedByCoord.out.patched.md.marked_dup_metrics.txt \
+    ASSUME_SORT_ORDER=coordinate \
+    TAGGING_POLICY=DontTag \
+    OPTICAL_DUPLICATE_PIXEL_DISTANCE=100
+
+
+# making RSEM index
+
+rsem-prepare-reference \
+        /data/Homo_sapiens_assembly38_noALT_noHLA_noDecoy.fasta \
+        /data/rsem_reference/rsem_reference \
+        --gtf /data/gencode.v39.GRCh38.annotation.gtf \
+        --num-threads 4"
+
+
+# generate TPM
+rsem-calculate-expression \
+  --num-threads 4 \
+  --fragment-length-max 1000 \
+  --no-bam-output \
+  --paired-end \
+  --estimate-rspd \
+  /data/star_out/${sample_id}.Aligned.toTranscriptome.out.bam \
+  /data/rsem_reference/rsem_reference \
+  /data/${sample_id}.rsem
+
+
+
+```
