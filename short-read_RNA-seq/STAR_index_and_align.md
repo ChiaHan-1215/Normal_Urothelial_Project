@@ -91,7 +91,6 @@ MarkDuplicates \
     PROGRAM_RECORD_ID=null \
     MAX_RECORDS_IN_RAM=500000 \
     SORTING_COLLECTION_SIZE_RATIO=0.25 \
-    TMP_DIR=/data \
     M=${sample_id}.Aligned.sortedByCoord.out.patched.md.marked_dup_metrics.txt \
     ASSUME_SORT_ORDER=coordinate \
     TAGGING_POLICY=DontTag \
