@@ -130,3 +130,16 @@ for i in *.bam; do OUTPUT=$(echo $i | sed 's/Aligned.sortedByCoord.out.bam//g');
 swarm -t [number cpus] --time [4:00:00] -g [gb for memory] mkdup.swarm
 
 ```
+
+
+### Since the RSEM reuqired aligned to transcriptome sequence, can use salmon tool to generate TPM
+
+https://salmon.readthedocs.io/en/latest/salmon.html
+
+```
+Quantifying in alignment-based mode
+Say that you’ve prepared your alignments using your favorite aligner and the results are in the file aln.bam, and assume that the sequence of the transcriptome you want to quantify is in the file transcripts.fa. You would run Salmon as follows:
+
+./bin/salmon quant -t transcripts.fa -l <LIBTYPE> -a aln.bam -o salmon_quant
+
+```
