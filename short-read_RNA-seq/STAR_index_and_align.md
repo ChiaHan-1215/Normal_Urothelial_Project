@@ -136,7 +136,9 @@ swarm -t [number cpus] --time [4:00:00] -g [gb for memory] mkdup.swarm
 
 https://salmon.readthedocs.io/en/latest/salmon.html
 
+
 ```
+NOTE: it'll need to transfer to fastq and align to Transcriptome using salmon and then run the quant mode
 Quantifying in alignment-based mode
 Say that you’ve prepared your alignments using your favorite aligner and the results are in the file aln.bam, and assume that the sequence of the transcriptome you want to quantify is in the file transcripts.fa. You would run Salmon as follows:
 
