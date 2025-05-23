@@ -86,15 +86,15 @@ Once the alignment is complete, do the remove duplication and RSEM to calcuate T
 # remove duplication
 
 MarkDuplicates \
-    I=/data/star_out/${sample_id}.Aligned.sortedByCoord.out.patched.bam \
-    O=Aligned.sortedByCoord.out.patched.md.md.bam \
-    PROGRAM_RECORD_ID=null \
-    MAX_RECORDS_IN_RAM=500000 \
-    SORTING_COLLECTION_SIZE_RATIO=0.25 \
-    M=${sample_id}.Aligned.sortedByCoord.out.patched.md.marked_dup_metrics.txt \
-    ASSUME_SORT_ORDER=coordinate \
-    TAGGING_POLICY=DontTag \
-    OPTICAL_DUPLICATE_PIXEL_DISTANCE=100
+    -I /data/star_out/${sample_id}.Aligned.sortedByCoord.out.patched.bam \
+    -O Aligned.sortedByCoord.out.patched.md.md.bam \
+    -PROGRAM_RECORD_ID null \
+    -MAX_RECORDS_IN_RAM 500000 \
+    -SORTING_COLLECTION_SIZE_RATIO 0.25 \
+    -M ${sample_id}.Aligned.sortedByCoord.out.patched.md.marked_dup_metrics.txt \
+    -ASSUME_SORT_ORDER coordinate \
+    -TAGGING_POLICY DontTag \
+    -OPTICAL_DUPLICATE_PIXEL_DISTANCE 100
 
 
 # making RSEM index
@@ -123,7 +123,7 @@ rsem-calculate-expression \
 Since using for loop takes longer time to complete whole sample, can use `swarm`. below is the way to create the swarm file based on list of bam file
 
 ```
-for i in *.bam; do OUTPUT=$(echo $i | sed 's/Aligned.sortedByCoord.out.bam//g'); echo "ml picard/2.26.11 ; picard MarkDuplicates I=${i} O=${OUTPUT}.md.bam PROGRAM_RECORD_ID=null  MAX_RECORDS_IN_RAM=500000 SORTING_COLLECTION_SIZE_RATIO=0.25 M=${OUTPUT}_metrics.txt ASSUME_SORT_ORDER=coordinate TAGGING_POLICY=DontTag OPTICAL_DUPLICATE_PIXEL_DISTANCE=100"; done >> mkdup.swarm
+for i in *.bam; do OUTPUT=$(echo $i | sed 's/Aligned.sortedByCoord.out.bam//g'); echo "ml picard/2.26.11 ; picard MarkDuplicates -I ${i} -O ${OUTPUT}.md.bam -PROGRAM_RECORD_ID null -MAX_RECORDS_IN_RAM 500000 -SORTING_COLLECTION_SIZE_RATIO 0.25 -M ${OUTPUT}_metrics.txt -ASSUME_SORT_ORDER coordinate -TAGGING_POLICY DontTag -OPTICAL_DUPLICATE_PIXEL_DISTANCE 100"; done >> mkdup.swarm
 
 # once the mkdup.swarm is created, use swarm command to run it
 
