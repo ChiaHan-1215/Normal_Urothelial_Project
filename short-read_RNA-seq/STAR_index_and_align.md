@@ -145,3 +145,43 @@ Say that you’ve prepared your alignments using your favorite aligner and the r
 ./bin/salmon quant -t transcripts.fa -l <LIBTYPE> -a aln.bam -o salmon_quant
 
 ```
+#### Salmon instruction
+ref:
+https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/
+
+- download the fastq file of transcripts and genome sequence, I used the GENCODE V39 HG38
+
+```
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/gencode.v39.transcripts.fa.gz
+
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_39/GRCh38.primary_assembly.genome.fa.gz
+
+```
+
+- get the chromsome id and remove `>`
+
+```
+
+grep "^>" <(gunzip -c GRCh38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
+
+# .bak is generated the backup file for decoy.txt, but it jsut backup  
+sed -i.bak -e 's/>//g' decoys.txt
+
+```
+
+- concat the transcripts and genome
+
+```
+cat gencode.v39.transcripts.fa.gz GRCh38.primary_assembly.genome.fa.gz > gentrome.fa.gz
+
+```
+
+- now first do `salmon index`
+
+```
+salmon index -t gentrome.fa.gz -d decoys.txt -p 12 -i salmon_index --gencode
+
+```
+
+
+
