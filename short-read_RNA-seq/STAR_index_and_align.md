@@ -74,7 +74,8 @@ fastqR2=`echo $i | sed 's/_R1_/_R2_/g'`
 
 STAR --runThreadN 24 --genomeDir star_index_hg38_150bp --readFilesIn ${fastqR1} ${fastqR2} --outFileNamePrefix Align_results_hg38/${sample_name}\
  --readFilesCommand zcat --sjdbGTFfile ${ANNO} --sjdbOverhang 149\
- --quantMode GeneCounts --outSAMtype BAM SortedByCoordinate --twopassMode Basic &&  echo finfin ${sample_name}
+ --quantMode TranscriptomeSAM GeneCounts\ # add TranscriptomeSAM to get the trasncriptome bam file for RSEM
+ --outSAMtype BAM SortedByCoordinate --twopassMode Basic &&  echo finfin ${sample_name}
 
 done
 
