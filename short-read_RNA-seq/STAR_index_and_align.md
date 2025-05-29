@@ -114,11 +114,17 @@ rsem-calculate-expression \
   --no-bam-output \
   --paired-end \
   --estimate-rspd \
-  /data/star_out/${sample_id}.Aligned.toTranscriptome.out.bam \
+  --bam /data/star_out/${sample_id}.Aligned.toTranscriptome.out.bam \
   /data/rsem_reference/rsem_reference \
   /data/${sample_id}.rsem
 
 
+### This is the example of code:
+rsem-calculate-expression \
+  --num-threads 4   --fragment-length-max 1000 \
+  --no-bam-output   --estimate-rspd \
+  --bam SHSY5Y_S03_U3Aligned.toTranscriptome.out.bam \
+--paired-end  ../RSEM_Ref/rsem_reference Output.rsem
 
 ```
 Since using for loop takes longer time to complete whole sample, can use `swarm`. below is the way to create the swarm file based on list of bam file
