@@ -187,3 +187,82 @@ Once we get the quant.sf file, to make gene TPM we can use `tximport`
 https://bioconductor.org/packages/devel/bioc/vignettes/tximport/inst/doc/tximport.html
 
 
+Below is the Rscipt for handleing mergeing TPMs in isoform and gene level 
+
+```R
+library(dplyr)
+library(tximport)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(EnsDb.Hsapiens.v86)
+
+setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial_05152025/SALMON_Quant_TPM/')
+
+
+
+edb <- EnsDb.Hsapiens.v86
+
+tx2gene <- AnnotationDbi::select(
+  edb,
+  keys(edb, keytype="TXNAME"),
+  columns = c("TXNAME", "GENEID"),
+  keytype = "TXNAME"
+) %>%
+  rename(transcript_id = TXNAME,
+         gene_id       = GENEID)
+
+
+
+lff <- list.files('.',pattern = ".sf")
+# like SetName()
+names(lff) <- gsub("_salmon_quant.sf$", "", basename(lff))
+# check lff to see name match with quant.sf or not
+
+# Just output isoform TPM 
+txi_iso <- tximport(
+  lff,
+  type    = "salmon",
+  txIn    = TRUE,      # you’re supplying Salmon outputs
+  txOut   = TRUE       # **do not** summarize—keep transcript estimates
+)
+
+isoform_tpm <- txi_iso$abundance
+
+
+txi <- tximport(
+  lff,
+  type    = "salmon",
+  tx2gene = tx2gene,
+  ignoreTxVersion = TRUE
+)
+
+gene_tpm <- txi$abundance
+
+# 1. Extract the unique Ensembl gene IDs you have
+gene_ids <- rownames(gene_tpm)
+
+gene_map <- ensembldb::select(
+  edb,
+  keys    = gene_ids,
+  keytype = "GENEID",
+  columns = c("GENEID","GENENAME")
+)
+
+# 3. Turn that into a named vector for lookup
+symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
+
+df <- read.delim('SC917163_salmon_quant.sf')
+
+# set name 
+rownames(gene_tpm) <- ifelse(
+  is.na(symb[gene_ids]),
+  gene_ids,
+  symb[gene_ids]
+)
+
+
+
+
+
+```
+
+
