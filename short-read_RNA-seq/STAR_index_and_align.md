@@ -181,7 +181,9 @@ salmon index -t gentrome.fa.gz -d decoys.txt -p 12 -i salmon_index --gencode
 
 ```
 
-ct 
+Once we get the quant.sf file, to make gene TPM we can use `tximport` 
+
+
 https://bioconductor.org/packages/devel/bioc/vignettes/tximport/inst/doc/tximport.html
 
 
