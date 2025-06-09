@@ -98,13 +98,16 @@ MarkDuplicates \
     -OPTICAL_DUPLICATE_PIXEL_DISTANCE 100
 
 
-# making RSEM index
+# making RSEM index, default is only bowtie2
+# can add --star to alos include star index 
 
 rsem-prepare-reference \
-        /data/Homo_sapiens_assembly38_noALT_noHLA_noDecoy.fasta \
-        /data/rsem_reference/rsem_reference \
-        --gtf /data/gencode.v39.GRCh38.annotation.gtf \
-        --num-threads 4"
+  --gtf  /data/gencode.v39.GRCh38.annotation.gtf \
+  --star \                       # build STAR index as well
+  --num-threads 4 \
+  /data/Homo_sapiens_assembly38_noALT_noHLA_noDecoy.fasta \
+  /data/rsem_reference/rsem_reference
+
 
 
 # generate TPM
