@@ -123,11 +123,21 @@ rsem-calculate-expression \
 
 
 ### This is the example of code:
+# NOTE: the reference folder direction need to indicated to ref/reference_name
+
 rsem-calculate-expression \
   --num-threads 4   --fragment-length-max 1000 \
   --no-bam-output   --estimate-rspd \
   --bam SHSY5Y_S03_U3Aligned.toTranscriptome.out.bam \
---paired-end  ../RSEM_Ref/rsem_reference Output.rsem
+--paired-end  ../RSEM_Ref/rsem_reference \
+ Output.rsem
+
+### This is the example of code START from fastq files:
+rsem-calculate-expression --star --paired-end --strandedness reverse --no-bam-output -p 6\
+ --star-gzipped-read-file \
+ fastqs/SHSY5Y_S01_U1_R1.fastq.gz fastqs/SHSY5Y_S01_U1_R2.fastq.gz \
+ ./RSEM_REF/rsem_ref_star ./SY5Y_rsem/test
+
 
 ```
 Since using for loop takes longer time to complete whole sample, can use `swarm`. below is the way to create the swarm file based on list of bam file
