@@ -200,9 +200,7 @@ library(tximport)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(EnsDb.Hsapiens.v86)
 
-setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial_05152025/SALMON_Quant_TPM/')
-
-
+setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/CCLE and other RNA-seq Bam files/SH-SY5Y_short_read_RNA_seq_bams_hg38/salmon_quant_result_for_TPM/')
 
 edb <- EnsDb.Hsapiens.v86
 
@@ -211,15 +209,13 @@ tx2gene <- AnnotationDbi::select(
   keys(edb, keytype="TXNAME"),
   columns = c("TXNAME", "GENEID"),
   keytype = "TXNAME"
-) %>%
-  rename(transcript_id = TXNAME,
-         gene_id       = GENEID)
+)  
 
-
+names(tx2gene) <- c('transcript_id','gene_id','TXID')
 
 lff <- list.files('.',pattern = ".sf")
 # like SetName()
-names(lff) <- gsub("_salmon_quant.sf$", "", basename(lff))
+names(lff) <- gsub("_salmon.sf$", "", basename(lff))
 # check lff to see name match with quant.sf or not
 
 # Just output isoform TPM 
@@ -232,6 +228,7 @@ txi_iso <- tximport(
 
 isoform_tpm <- txi_iso$abundance
 
+# output summary of isofrom TPM into gene TPM
 
 txi <- tximport(
   lff,
@@ -258,16 +255,14 @@ symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
 df <- read.delim('SC917163_salmon_quant.sf')
 
 # set name 
-rownames(gene_tpm) <- ifelse(
-  is.na(symb[gene_ids]),
-  gene_ids,
-  symb[gene_ids]
-)
+rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
+                             gene_ids,symb[gene_ids])
+
+gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = SHSY5Y_S01_U1 )
+ 
 
 
 
 
 
 ```
-
-
