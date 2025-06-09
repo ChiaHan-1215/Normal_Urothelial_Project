@@ -106,7 +106,7 @@ rsem-prepare-reference \
   --star \                       # build STAR index as well
   --num-threads 4 \
   /data/Homo_sapiens_assembly38_noALT_noHLA_noDecoy.fasta \
-  /data/rsem_reference/rsem_reference
+  /data/rsem_reference
 
 
 
