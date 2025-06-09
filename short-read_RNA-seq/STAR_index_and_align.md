@@ -174,12 +174,17 @@ cat gencode.v39.transcripts.fa.gz GRCh38.primary_assembly.genome.fa.gz > gentrom
 
 ```
 
-- now first do `salmon index`
+- now first do `salmon index` and then `salmon quant`
 
 ```
 salmon index -t gentrome.fa.gz -d decoys.txt -p 12 -i salmon_index --gencode
 
+# quant
+salmon quant -i transcripts_index -l salmon_index -1 reads1.fq -2 reads2.fq --validateMappings -o transcripts_quant
+
 ```
+
+
 
 Once we get the quant.sf file, to make gene TPM we can use `tximport` 
 
