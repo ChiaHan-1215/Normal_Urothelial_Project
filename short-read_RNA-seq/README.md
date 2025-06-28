@@ -2,18 +2,27 @@
 - Goal
   
   The short read RAN-seq results of normal urothelial project
+
+  Furture directions:
+    - run GSEA analysis/GO term to determine cell biological bacground
+  
+
+
+  
 ------------------
 - Data
   
-  fastq files delivederd from CGR with QC sheets etc. the location is in T-drive:
+  fastq files (read length: 150bp) delivederd from CGR with QC sheets etc. the location is in T-drive:
   
-  `T:\DCEG\Projects\DataDelivery\Prokunina\TP0325-RS7-Urothelial-Samples-RNA-seq`
+    - `T:\DCEG\Projects\DataDelivery\Prokunina\TP0325-RS7-Urothelial-Samples-RNA-seq`
   
-  sample: 116 sample described in `Sample_table.md`.
+  sample: 116 sample described in `Sample_table.md`. as for the RNA-seq QC sheet, `114` sample.
+
+  BAM files
   
-  The RNA-seq QC sheet, `114` sample.
   
-  read length: 150bp
+
+  
   
 ------------------
 - Code
