@@ -6,6 +6,10 @@ The repo for Normal Urothelial sample project using Parse single cell with short
   
 - Data  
   RNA-seq, single-cell RNA-seq, and single cell PacBio long read RNA-seq, and common SNPs genotype table.
+
+  The projects are seperated by folders
+
+  
   
 - Code  
   single cell:
