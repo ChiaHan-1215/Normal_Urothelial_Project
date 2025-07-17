@@ -1,0 +1,648 @@
+---
+title: "Parse single cell RNA-seq process piepline"
+author: Chia Han Lee
+date: "2025-01-21"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## sample description and fastq files location
+
+The sample are 75 normal urothelial samples using Parse Mega kit to do
+single cell RNA-seq.
+
+Parse scRNA-seq short reads fastq files are located:
+
+(run in 2 flow cells, 4 fastq files/sub-library, around 5T)
+`T-drive: ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/2024_Mega_Kit/Illumina`
+
+## Parse pipeline installation
+
+for downloading and installing the pipeline, follow the link:
+<https://support.parsebiosciences.com/hc/en-us/sections/360011218152-Basics-of-the-Pipeline>
+
+```         
+ID: kforsythe97@gmail.com
+pass: Pass2366
+```
+
+## running the pipeline
+
+Once the pipeline is installed, run the `split-pipe` in terminal to test
+
+Since we have 8 sub-libarary, use loop to go throug each sub-lib and
+then merged to one final files
+
+```         
+#!/bin/bash
+
+source myconda
+conda activate parse_v130
+
+# command line
+
+for  i in *R1*
+do
+ff=`echo $i | sed 's/_R1_001.fastq.gz//g'  `
+split-pipe --mode all \
+ --chemistry v2 \
+ --genome_dir /data/leec20/parse_single_cell/genome_ref_hg38_v130/ \
+ --fq1 ${i} \
+ --fq2 ${ff}_R2_001.fastq.gz \
+ --samp_sltab /data/leec20/parse_single_cell/2024_Parse_WT_Mega_v2_Sample_Loading_Table_v2.xlsm \
+ --nthreads 32 --output_dir /data/leec20/parse_single_cell/2024_output/res_${ff}
+echo "${i} done"
+done
+
+# once done in 2 flow cells, merge the results 
+
+split-pipe --mode  comb  --sublibraries\
+ res_SD330607_CAGATCAC-ATGTGAAG_L001\
+ res_SD330608_ACTGATAG-GTCCAACC_L002\
+ res_SD330610_CTTGTAAT-AGTTGGCT_L003\
+ res_SD330611_AGTCAAGA-ATAAGGCG_L004\
+ res_SD330614_GTCCGCCT-AGATACGG_L005\
+ res_SD330615_GTGAAACT-TACAGACT_L006\
+ res_SD330617-GGTAGCAT-TGCTTGCC_S7_L007\
+ res_SD330618_ACTTGATC-TTTGGGTG_L008\
+ res_Sec_SD330607_CAGATCAC-ATGTGAAG_L001\
+ res_Sec_SD330608_ACTGATAG-GTCCAACC_L002\
+ res_Sec_SD330610_CTTGTAAT-AGTTGGCT_L003\
+ res_Sec_SD330611_AGTCAAGA-ATAAGGCG_L004\
+ res_Sec_SD330614_GTCCGCCT-AGATACGG_L005\
+ res_Sec_SD330615_GTGAAACT-TACAGACT_L006\
+ res_Sec_SD330617-GGTAGCAT-TGCTTGCC_S7_L007\
+ res_Sec_SD330618_ACTTGATC-TTTGGGTG_L008\
+ --output_dir ./MEGA_cb_all_75_bladder_sample
+```
+
+The output will look like, the `all-sample` contains merged mtx and gene
+files for input to Seurat package
+
+```{bash, eval=T}
+ls /data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/
+```
+
+------------------------------------------------------------------------
+
+This is the section for QC and prepossessing
+
+### Reading data
+
+Once the `split-pipe` done, load the mtx and gene files in the
+`filtered` folder
+
+also we need to load the public sc database for cell annotation
+
+```{R,echo=T}
+# needs to be set for large dataset analysis
+options(future.globals.maxSize = 1024^3 * 1000)
+```
+
+Load the reuqire packages
+
+```{R,results='hide',message=FALSE,echo=T}
+
+# load libraries
+
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(ggplot2)
+library(sctransform)
+library(BPCells)
+library(celldex)
+library(SingleR)
+library(biomaRt)
+```
+
+loading public database downloaded from TP
+
+```{R,echo=T,eval=F}
+
+# load ref for annotation
+BRef <- readRDS('/data/leec20/parse_single_cell/2024_output/bladder_normal_from_Tabula_seruat_obj.rds')
+DefaultAssay(BRef) <- "RNA"
+Logcount <- as.SingleCellExperiment(BRef, assay = "RNA")
+
+# Set up biomaRt
+mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl",host ="https://www.ensembl.org" )
+# Since the file using ENSGxx, need to map to geneID
+genes <- getBM(attributes=c("ensembl_gene_id", "hgnc_symbol"),
+               filters="ensembl_gene_id",
+               values=rownames(Logcount),  # Assuming Logcount has Ensembl IDs
+               mart=mart)
+
+# Create a named vector for easy conversion
+gene_conv <- setNames(genes$hgnc_symbol, genes$ensembl_gene_id)
+# Convert the rownames of Logcount, keeping original names if no match found
+new_rownames <- sapply(rownames(Logcount), function(x) {
+  if (x %in% names(gene_conv) && gene_conv[x] != "") {
+    return(gene_conv[x])
+  } else {
+    return(x)  # Keep the original name if no match or empty conversion
+  }
+})
+
+# Ensure uniqueness of new rownames
+new_rownames <- make.unique(new_rownames)
+# Assign the new rownames
+rownames(Logcount) <- new_rownames
+
+
+```
+
+Once the public data is converted, now load the parse single cell file.
+Since we have 75 folders seperated by sampleID, we seperate around 15
+samples as group and loop to load those file into Seruat object,
+normalzed, cell annotation, and then save into rds file.
+
+```{R,echo=T,eval=F}
+
+sample_dirs <- list.dirs(path = "/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample", full.names = TRUE, recursive = FALSE)
+#sample_dirs <- grep("sample_[3-8][0-9]$", sample_dirs, value = TRUE)
+#sample_dirs <- sample_dirs[-c(1,2)]
+
+seurat_objects <- list()
+
+for (i in sample_dirs) {
+  # Get sample name from directory name
+  # i <- sample_dirs[1]
+  sample_name <- basename(i)
+  # Set paths for matrix and metadata and load the DGE_filterd
+  mat_path <- file.path(i, "DGE_filtered")
+  # Read ParseBio matrix
+  mat <- ReadParseBio(mat_path)
+  # Check and fix empty gene names
+  empty_genes <- rownames(mat) == ""
+  rownames(mat)[empty_genes] <- paste0("unknown_", seq_len(sum(empty_genes)))
+  # Read cell metadata
+  cell_meta <- read.csv(file.path(mat_path, "cell_metadata.csv"), row.names = 1)
+  # Create Seurat object
+  seurat_obj <- CreateSeuratObject(mat, min.features = 200, min.cells = 3, meta.data = cell_meta)
+  # Store Seurat object in list
+  seurat_objects[[sample_name]] <- seurat_obj
+  print('done one!!!')
+}
+
+
+# Merge all Seurat objects
+bladder <- merge(seurat_objects[[1]], y = seurat_objects[-1] , project = "combined_bladder")
+# join layer if merge, as of new version of Seurat, need to join layer
+bladder[["RNA"]] <- JoinLayers(bladder[["RNA"]])
+
+
+# The do QC
+
+bladder[["percent.mt"]] <- PercentageFeatureSet(bladder, pattern = "^MT-")
+#
+# # ##### doing QC #######
+# #
+bladder@meta.data$orig.ident <- factor("All_baldder_tissue")
+Idents(bladder) <- bladder@meta.data$orig.ident
+# #
+VlnPlot(bladder, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#
+plot1 <- FeatureScatter(bladder, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(bladder, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+
+# subset the data
+
+bladder <- subset(bladder, subset = nFeature_RNA > 200 & nFeature_RNA < 12500 & nCount_RNA < 12500 & percent.mt < 35)
+gc()
+
+bladder <- NormalizeData(bladder)
+bladder <- FindVariableFeatures(bladder, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(bladder)
+bladder <- ScaleData(bladder, features = all.genes)
+bladder <- RunPCA(bladder, features = VariableFeatures(object = bladder))
+
+ElbowPlot(bladder)
+bladder <- FindNeighbors(bladder, dims = 1:30)
+bladder <- FindClusters(bladder,resolution = 0.5)
+bladder <- RunUMAP(bladder, dims = 1:30)
+
+# # ######################################################################
+# # ################################### CELL ANNOTATION ##################
+# # ######################################################################
+
+# set martix
+Targett <- as.SingleCellExperiment(bladder, assay = "RNA")
+
+####### prediting
+pred.grun <- SingleR(test=Targett, ref=Logcount, labels=Logcount$cell_type, de.method="wilcox")
+
+# and put those labels back on our Seurat object and plot our on our umap.
+
+lbls.keep <- table(pred.grun$pruned.labels)>10
+
+bladder$CELL_LAB <- ifelse(lbls.keep[pred.grun$labels], pred.grun$labels, 'Other')
+
+# DimPlot(bladder,group.by = 'CELL_LAB',reduction = 'umap',raster = F,label = T)
+print('done anno, prepate save')
+
+# saveRDS(bladder,"/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/Merge_67_end.rds")
+#
+
+```
+
+Now we have some rds files which contains around 15 sample combined per
+rds, we can merged into one final rds file
+
+since the file is big, we can use `BPcell` package to decrease the
+storage problem
+
+```{R,eval=F,echo=T}
+
+# Set working directory and get file list
+#setwd('/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/')
+
+# list all the rds file
+sample_ff <- list.files(full.names = TRUE, pattern = '.rds')
+
+# # Initialize with first object
+print(paste("Starting merge of", length(sample_ff), "files"))
+#
+bladder <- readRDS(sample_ff[1])
+#
+
+# Remove unused field for reduce memory issue
+
+bladder[["RNA"]]$data <- NULL
+bladder[["RNA"]]$scale.data <- NULL
+bladder[["RNA"]]@meta.data <- data.frame(row.names = rownames(bladder[["RNA"]]))
+bladder[["pca"]] <- NULL
+bladder[["umap"]] <- NULL
+
+gc()
+
+# Merge remaining files
+for(i in 2:length(sample_ff)) {
+  print(paste("Merging file", i, "of", length(sample_ff)))
+  current_obj <- readRDS(sample_ff[i])
+  current_obj[["RNA"]]$data <- NULL
+  current_obj[["RNA"]]$scale.data <- NULL
+  current_obj[["RNA"]]@meta.data <- data.frame(row.names = rownames(current_obj[["RNA"]]))
+  current_obj[["pca"]] <- NULL
+  current_obj[["umap"]] <- NULL
+
+  bladder <- merge(bladder,y = current_obj)
+  rm(current_obj); gc()
+}
+#
+bladder<-JoinLayers(bladder)
+#
+
+# write up the BPcell storage
+
+write_matrix_dir(mat = bladder[["RNA"]]$counts, dir = '/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/BPcell_storage_for_all/')
+counts.mat <- open_matrix_dir(dir = '/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/BPcell_storage_for_all/')
+
+# load into BPcell style, and saveRDS()
+bladder[["RNA"]]$counts <- counts.mat
+
+
+
+```
+
+After saved into merged RDS file, do normalized as whole group
+
+```{R,eval=F,echo=T}
+
+bladder <- readRDS("/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/BP_FINAL_MERGEed_1M_parse_withcellanno.rds")
+
+# split into 75 layres by sample ID
+bladder[["RNA"]] <- split(bladder[["RNA"]], f = bladder$sample)
+
+# remove unused column
+columns_to_remove <- c("RNA_snn_res.0.1")
+bladder@meta.data <- bladder@meta.data[, !colnames(bladder@meta.data) %in% columns_to_remove]
+# 
+bladder <- NormalizeData(bladder)
+bladder <- FindVariableFeatures(bladder)
+bladder <- ScaleData(bladder)
+bladder <- RunPCA(bladder,verbose = F)
+
+# 
+## Without interg
+bladder <- FindNeighbors(bladder, dims = 1:30, reduction = "pca")
+# # res can set 0.1-2, depend on how you want seurat cluster number
+bladder <- FindClusters(bladder, resolution = 1, cluster.name = "unintegrated_clusters")
+#bladder <- FindClusters(bladder, resolution = 0.5, cluster.name = "unintegrated_clusters")
+bladder <- RunUMAP(bladder, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+# DimPlot(bladder, reduction = "umap.unintegrated")
+# VlnPlot(bladder,features = 'CHRNA5',group.by = 'CELL_LAB')
+
+## With interg
+bladder <- IntegrateLayers(
+  object = bladder, method = HarmonyIntegration,
+  orig.reduction = "pca", new.reduction = "harmony",
+  verbose = FALSE)
+
+# # re-join after interger
+bladder <- JoinLayers(bladder)
+
+bladder <- FindNeighbors(bladder, reduction = "harmony", dims = 1:30)
+bladder <- FindClusters(bladder, resolution = 1, cluster.name = "harmony_clusters")
+bladder <- RunUMAP(bladder, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
+
+
+# save RDS as final merged file
+
+#saveRDS(bladder, "BP_FINAL_MERGEed_1M_parse_withcellanno_Intered.rds")
+
+
+```
+
+------------------------------------------------------------------------
+
+This section is for visualization after combine and all the
+normalization, cell annotation
+
+load the saved RDS file
+
+```{R}
+
+bladder <- readRDS('/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/BP_FINAL_MERGEed_1M_parse_withcellanno_Intered.rds')
+
+# check the information of the RDS file
+
+bladder
+```
+
+### We have un-intergrted and hormony integreated method, can plot to see the difference
+
+#### un-intergeated
+
+```{R,echo=T}
+DimPlot(bladder,reduction = 'umap.unintegrated',label = T,group.by = "sample",raster = F) + NoLegend()
+DimPlot(bladder,reduction = 'umap.unintegrated',label = T,group.by = "CELL_LAB",raster = F,order = T,alpha = 0.7)
+```
+
+#### Harmony integrated
+
+```{R,echo=T}
+# plot cluster 
+DimPlot(bladder,reduction = 'umap.harmony',label = T,group.by = "sample",raster = F)
+
+# plot based on cell label 
+
+DimPlot(bladder,reduction = 'umap.harmony',label = T,group.by = "CELL_LAB",raster = F,order = T,alpha = 0.7) + NoLegend()
+
+```
+
+### We can focus on target gene expression
+
+```{R}
+FeaturePlot(bladder, features = "CHRNA5",reduction = "umap.harmony",order = T,min.cutoff =1,
+                  cells =WhichCells(bladder, expression = `CHRNA5` > 0),
+                  cols = c( "#f5cf60", "#fb3636"),raster = F,alpha = 0.8)
+
+
+DimPlot(bladder, 
+              reduction = "umap.harmony",
+              cells.highlight = WhichCells(bladder, expression = `CHRNA5` > 1),
+              cols = c('#eeeeee'),cols.highlight = c("#3f50cc"),
+              sizes.highlight = 0.2,order = T,raster = F) + NoLegend()
+```
+
+### Determine the sample gender to match with DNA sample
+
+Female: `XIST`
+
+-   X inactive-specific transcript (XIST) RNA is involved in X
+    chromosome silencing in female cells and allows X chromosome
+    equilibration with males.
+
+-   XIST is female-expressed from its function in X-chromosome
+    inactivation.
+
+Male: `UTY`, `RPS4Y1`
+
+-   Ubiquitously transcribed tetratricopeptide repeat containing,
+    Y-linked (UTY)
+
+-   Ribosomal Protein S4 Y-Linked 1 (RPS4Y1)
+
+-   Both genes are Y-chromosome-specific and therefore male-expressed.
+
+```{R,fig.ncol=2, fig.show="hold"}
+
+# Get all unique sample names
+all_samples <- unique(bladder$sample)
+
+
+for ( i in seq(1, 75, by=15)){
+  bladder_subset <- subset(bladder, subset = sample %in% all_samples[i:min(i+14, 75)])
+  print(DotPlot(bladder_subset,features = c('UTY','XIST'),group.by = 'sample'))
+  rm(bladder_subset)
+}
+# 
+# for ( i in seq(1, 75, by=15)){
+#   bladder_subset <- subset(bladder, subset = sample %in% all_samples[i:min(i+14, 75)])
+#   DotPlot(bladder_subset,features = c('RPS4Y1','XIST'),group.by = 'sample')
+#   rm(bladder_subset)
+#}
+
+```
+
+### Find cluster gene expression marker
+
+-   find markers for every cluster compared to all remaining cells,
+    report only the positive ones
+
+-   check Assay
+
+```{r}
+DefaultAssay(bladder)
+Idents(bladder) <- as.factor(bladder$CELL_LAB)
+
+```
+
+-   Set idents
+
+```{R,echo=T,eval=F}
+
+
+# find cluster markers 
+# gene.markers <- FindAllMarkers(bladder, only.pos = TRUE,test.use = 'wilcox')
+
+# Can also set cell number as limit factor
+gene.markers<- FindAllMarkers(
+  object           = bladder,
+  min.cells.group  = 100,    # only test genes if at least 100 cells in group express them
+  min.pct          = 0.1,   # example fraction
+  only.pos = TRUE,
+  test.use = "wilcox"
+)
+
+# Save the table
+#write.table(gene.markers,'/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/gene_diff_marker_per_celltype_mincell_100_minpct_0.1.csv',col.names = T,row.names = F,sep = ',',quote = F)
+
+```
+
+```{r,eval=T,echo=T}
+# load the table here in case 
+gene.markers <- read.csv('/data/leec20/parse_single_cell/2024_output/MEGA_cb_all_75_bladder_sample/all-sample/Per_sample_filtering_and_cellAnnted/gene_diff_marker_per_celltype_mincell_100_minpct_0.1.csv')
+
+# get top gene logFC 
+Top <- gene.markers %>%
+  group_by(cluster) %>%
+  dplyr::filter(avg_log2FC >1)
+
+head(Top)
+
+```
+
+#### Load TP as ref to see the higest marker for utherial cell and other cell type to see if the result are mathc with our cell clusters
+
+```{r,eval=T,warning=F}
+ref <- readRDS('/data/leec20/parse_single_cell/2024_output/bladder_normal_from_Tabula_seruat_obj.rds')
+
+# plot cluster 
+DimPlot(ref,reduction = 'umap',label = T,raster = F,group.by = 'cell_type')
+
+# set Idents 
+Idents(ref) <- as.factor(ref$cell_type)
+
+# check gene marker
+#Ref.gene.markers <- FindAllMarkers(ref, only.pos = TRUE,test.use = 'wilcox')
+
+# Can also set cell number as limit factor
+Ref.gene.markers <- FindAllMarkers(
+  object           = ref,
+  min.cells.group  = 100,    # only test genes if at least 100 cells in group express them
+  min.pct          = 0.1,   # example fraction
+  only.pos = TRUE,
+  test.use = "wilcox"
+)
+
+# change ENSG to geneID
+
+# Set up biomaRt
+mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl",host ="https://www.ensembl.org" )
+# Get the conversion table
+genes <- getBM(attributes=c("ensembl_gene_id", "hgnc_symbol"),
+               filters="ensembl_gene_id",
+               values=Ref.gene.markers$gene,  # Assuming Logcount has Ensembl IDs
+               mart=mart)
+# Create a named vector for easy conversion
+gene_conv <- setNames(genes$hgnc_symbol, genes$ensembl_gene_id)
+
+# or get the ENSGID from geneID
+symbol_to_ensg <- setNames(
+  names(gene_conv),    # The original Ensembl IDs
+  gene_conv            # The original gene symbols
+)
+
+Ref.gene.markers$gene_ID <- sapply(Ref.gene.markers$gene, function(x) {
+  if (x %in% names(gene_conv) && gene_conv[x] != "") {
+    return(gene_conv[x])
+  } else {
+    return(x)  # Keep the original name if no match or empty conversion
+  }
+})
+
+Ref.Top <- Ref.gene.markers %>%
+  group_by(cluster) %>%
+  dplyr::filter(avg_log2FC > 1)
+
+
+
+```
+
+```{r,eval=T}
+# plot 
+
+### iScience paper bladder basal/intermidiate/Umbrella cell markers
+# https://www.sciencedirect.com/science/article/pii/S2589004224028554#abs0020
+urothelium <- c("KRT5","UPK1A")
+# Basal
+basal <- c('CCL20','DKK1','SHH','KRT5','KRT13','KRT14','KRT17','ITGA6','MKI67')
+# Intermediate
+Intermed <- c('AKR1C2','IL1RAPL2','TP63','GATA3','PDE4C','CDHR5','KRT9')
+# Umbrella
+Umbrella_cell <- c('UPK1A','UPK1B','UPK2','UPK3B','UPK3A','KRT20')
+
+# immune part 
+immune <- c('PTPRC','IL7R')
+# smooth muscle 
+smooth <- "MYLK"
+# endothe
+endothe <- "PECAM1"
+# fibroblast
+fibro <- "DCN"
+
+## plot 
+# basal_ref <- symbol_to_ensg[basal]
+# basal_ref <- basal_ref[which(!is.na(basal_ref))]
+
+set1 <- c(urothelium,immune,smooth,endothe,fibro)
+
+#DotPlot(bladder,features = set1)  + RotatedAxis()
+
+ 
+#VlnPlot(ref,features = smooth)
+# iScience 
+# ENSG00000105668 , UPK1A
+#VlnPlot(ref,features = 'ENSG00000105668')
+
+
+top_specific_markers <- Top %>%
+                            group_by(cluster) %>%
+                            top_n(3)
+top_specific_marker_ids <- unique(top_specific_markers$gene)
+
+# basal_ref <- symbol_to_ensg[basal]
+# basal_ref <- basal_ref[which(!is.na(basal_ref))]
+set1_REF <-symbol_to_ensg[set1]
+DotPlot(ref,features = set1_REF,group.by = "cell_type")  + RotatedAxis()
+DotPlot(bladder,features = set1,group.by = "CELL_LAB")  + RotatedAxis()
+# subseting the bladder uroth group and realaysis again 
+# https://github.com/satijalab/seurat/issues/1883#issuecomment-986015599
+
+# Once subseted, do GO-term or Tissue Developlent Analysis etc.
+
+# ref: https://github.com/basanto/Human_Bladder_scRNA-seq_vs_snRNA-seq/blob/main/Donor6_Urothelial_DEA_FINAL.R
+
+# ref: https://github.com/basanto/Human_Bladder_scRNA-seq_vs_snRNA-seq/blob/main/Donor6_Urothelial_GO_Analysis_FINAL.R
+
+
+```
+#### subseting the bladder uthro cells cluster and re-cluster
+
+
+```{r}
+
+# https://satijalab.org/seurat/articles/integration_introduction.html
+
+bu <- subset(x = bladder, idents = "bladder urothelial cell")
+
+
+```
+
+
+#### Or find the optimal cluster number after harmony and then do findmarkers to annotiaton cell cluster by gene expression pattern
+
+
+
+
+
+################# CUT OFF
+
+<!-- ## testing gene marker -->
+
+<!-- VlnPlot(object = bladder, features = 'CHRNA5',group.by = 'CELL_LAB',raster = F) -->
+
+<!-- VlnPlot(bladder,features = c('CD14'),group.by = "CELL_LAB",raster = F) -->
+
+<!-- VlnPlot(bladder,features = c('CD16'),group.by = "CELL_LAB",raster = F) -->
+
+<!-- VlnPlot(bladder,features = c('CD68','CSF1R','FCGR3A'),group.by = "CELL_LAB",raster = F) -->
