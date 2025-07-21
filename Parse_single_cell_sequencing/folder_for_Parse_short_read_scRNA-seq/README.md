@@ -199,6 +199,10 @@ pgene <- DotPlot(pbmc_0,features = feature_gene_Fibroblast,group.by = "ite") + x
 
 #### Running cellchat for detecting cell-cell communt strength?
 
+Cellchat Github: 
+
+https://htmlpreview.github.io/?https://github.com/jinworks/CellChat/blob/master/tutorial/Comparison_analysis_of_multiple_datasets.html
+
 ```{R}
 
 ### Running Cellchat
