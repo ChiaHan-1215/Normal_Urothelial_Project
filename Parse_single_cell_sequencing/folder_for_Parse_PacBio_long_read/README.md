@@ -1,3 +1,17 @@
+### Goal: 
+
+Using sc long-read data to detect potential isofrom and intergrated with short-read sc-RNA-seq data
+
+### Data: 
+
+The data is located: 
+
+
+### Code:
+
+
+### Result:
+
 This is the script focus on Parse PacBio Long read and long read
 application tools
 
