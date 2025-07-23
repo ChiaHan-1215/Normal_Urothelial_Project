@@ -50,10 +50,52 @@ cd B02.part_110 ; source myconda ; conda activate parse_v130 ; python /data/leec
 ------
 
 - Using PacBio long-read tools, pbmm2 -> iso-seq -> pigen 
+- Files:
+      - the folder: `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/ISO_seq_collpase/Pigeon_Pac`
+   
+      - fastqs files is after parse script preocessed above [files, as we have B0{1..4} sub-library fastqs]
+  
+      - BAM files are aligned using `pbmm2`, located in `Lib1_ParseWay_processing` and `Lib2_ParseWay_processing`
+
+```
+#!/bin/bash
+export TMPDIR=/lscratch/$SLURM_JOB_ID
+module load samtools
+source myconda
+conda activate PacBio
+
+# command line
+hg38=/fdb/igenomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa
+pbmm2 align $hg38 myfiles.fofn Merged_lib1_Parseway.PacBio.sorted.bam -j 24 -m 10G --sort --preset ISOSEQ && echo finned
+
+```
 
 
+  - Next step:
 
+  - merge lib1 and lib2 as single BAM
+  - Do `collapse`
+      
+      - `isoseq collapse -j 36 Parse_Pac_Merge_isoseq_pbmm2_hg38_sorted.bam Parse_Merged_collapse_isoseq_pbmm2_collapse.gff && echo finndededed`
+  - Do `Pigeon`
 
+```
+
+# gtf file was from GENECODE V47 [Comprehensive gene annotation]
+https://www.gencodegenes.org/human/release_47.html
+
+## perpare the file of collapase and gtf annotation, the output will generated xx.sorted.gff and xx.sorted.gtf with xxx.pgi index file
+
+pigeon prepare gencode.v47.annotation.gtf  /data/leec20/hg38.fa
+pigeon prepare ../Parse_Merged_collapse_isoseq_pbmm2_collapse.gff
+
+## classify, noted that the oreder is collapsed file first then gtf 
+pigeon classify Parse_Merged_collapse_isoseq_pbmm2_collapse.sorted.gff gencode.v47.annotation.sorted.gtf /data/leec20/hg38.fa
+
+```
+----
+----
+# CUT OFF 
 
 ### Code:
 
