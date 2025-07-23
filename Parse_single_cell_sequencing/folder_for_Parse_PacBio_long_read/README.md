@@ -2,6 +2,8 @@
 
 Using sc long-read data to detect potential isofrom and intergrated with short-read sc-RNA-seq data
 
+
+
 ### Data: 
 
 Fastq files: 
@@ -10,17 +12,17 @@ Fastq files:
     - script folder: `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/Fastqs`
 
     
-
-
-    
+------
 
 Approachs:
 
 - Using Pasre own script to clean, align fastqs
 
-- the source code example is
+- the source code example is in the folder `LR_generate_pairs.py`
 
 ```
+# running example
+
 cd B02.part_110 ; source myconda ; conda activate parse_v130 ; python /data/leec20/parse_single_cell/Long_read_pacbio_with_parse_test/Parse_Pacbio_PIPELINE/LR_generate_pairs.py --out_dir ./B02.part_110_OUT/ --chemistry v2 --fastq ./B02.part_110.fastq.gz --multiple_fq --new_fname P02split --l1dist 3 --l2dist 2 && pigz -p 12 ./B02.part_110_OUT/*.fastq && echo finned
 
 ```
@@ -31,13 +33,21 @@ cd B02.part_110 ; source myconda ; conda activate parse_v130 ; python /data/leec
       - The cleaned fastqs of B03,B04, NOT YET START Align, the folder `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/Original_PacBio_BAM/Lib2_fastqs_and_aligned_BAMs/B0{3..4}_barcode_head.fastq.gz`
 
 
-
+------
 
 - using TALON to create and annotated chr15 ONLY, can be done only 5 sample per run somehow...
     
   - the result and script running folder: `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/aligned_BAM/TALON_chr15_database_output`
     
   - chr15 BAM slice files: `/data/leec20/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/aligned_BAM/TALON_chr15_database_output/Parse_pacbio_Merged_chr15_slice/`
+
+------
+
+- Using TALON to cerate and annotated CHRNA5 only:
+
+- the result folder: `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/Original_PacBio_BAM/TALON_Anno_place/Merged_Parse_PacBIo_chr15_slice`
+
+------
 
 - Using PacBio long-read tools, pbmm2 -> iso-seq -> pigen 
 
