@@ -55,7 +55,7 @@ cd B02.part_110 ; source myconda ; conda activate parse_v130 ; python /data/leec
    
       - fastqs files is after parse script preocessed above [files, as we have B0{1..4} sub-library fastqs]
   
-      - BAM files are aligned using `pbmm2`, located in `Lib1_ParseWay_processing` and `Lib2_ParseWay_processing`
+      - BAM files are aligned using `pbmm2`, scripts in `Lib1_ParseWay_processing` and `Lib2_ParseWay_processing`; the BAMs in ``
 
 ```
 #!/bin/bash
@@ -74,6 +74,19 @@ pbmm2 align $hg38 myfiles.fofn Merged_lib1_Parseway.PacBio.sorted.bam -j 24 -m 1
   - Next step:
 
   - merge lib1 and lib2 as single BAM
+  - 
+```
+#!/bin/bash
+# Date: 07312025
+# loc: Biowulf
+
+ml samtools
+
+samtools merge -@ 12 Lib12_Parseway.PacBio.sorted.bam Merged_lib1_Parseway.PacBio.sorted.bam Merged_lib2_Parseway.PacBio.sorted.bam && echo fined
+
+
+```
+   
   - Do `collapse`
       
       - `isoseq collapse -j 36 Parse_Pac_Merge_isoseq_pbmm2_hg38_sorted.bam Parse_Merged_collapse_isoseq_pbmm2_collapse.gff && echo finndededed`
