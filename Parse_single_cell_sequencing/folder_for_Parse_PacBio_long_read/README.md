@@ -105,14 +105,17 @@ or just download from Iso-seq website, which is faster:
 
 https://downloads.pacbcloud.com/public/dataset/MAS-Seq/REF-pigeon_ref_sets/Human_hg38_Gencode_v39/
 
-The file are for CAGE: `refTSS_v3.3_human_coordinate.hg38.sorted.bed`,  intropolis: `intropolis.v1.hg19_with_liftover_to_hg38.tsv.min_count_10.modified2.sorted.tsv`, polyA: `polyA.list.txt`
+The file are for CAGE: `refTSS_v3.3_human_coordinate.hg38.sorted.bed`,
 
+intropolis: `intropolis.v1.hg19_with_liftover_to_hg38.tsv.min_count_10.modified2.sorted.tsv`,
 
-- If you want to generate a filtered GFF, you need to also provide the GFF that was used as input to pigeon classify
+polyA: `polyA.list.txt`
+
 
 - Current all required ref are in:
-
-`/data/leec20/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/ISO_seq_collpase/Pigeon_Pac/Pigeon_files`
+```
+/data/leec20/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/ISO_seq_collpase/Pigeon_Pac/Pigeon_files
+```
 
 - gtf file was from GENECODE V47 [Comprehensive gene annotation]
 
@@ -120,19 +123,26 @@ https://www.gencodegenes.org/human/release_47.html
 
 - Download all the files need describe above, first generated sorted gtf files
 
-`pigeon prepare gencode.v47.basic.annotation.gtf /data/leec20/hg38.fa refTSS_v3.3_human_coordinate.hg38.bed intropolis.v1.hg19_with_liftover_to_hg38.tsv.min_count_10.modified2.tsv --log-level INFO`
+```
+pigeon prepare gencode.v47.basic.annotation.gtf /data/leec20/hg38.fa refTSS_v3.3_human_coordinate.hg38.bed intropolis.v1.hg19_with_liftover_to_hg38.tsv.min_count_10.modified2.tsv --log-level INFO
+```
 
 - Once generated sorted files, can remove old unsorted file
 
 - then do pigen classify
+- the `gff` file is from `Isoseq-collapse` output
 
-`pigeon classify  ../aligned_bams/TEST_TT/ff.gff gencode.v47.basic.annotation.sorted.gtf /data/leec20/hg38.fa --cage-peak refTSS_v3.3_human_coordinate.hg38.sorted.bed --poly-a ployAlist.txt -o SET1 --fl ../aligned_bams/TEST_TT/ff.flnc_count.txt  --log-version INFO`
+```
+pigeon classify  ../aligned_bams/TEST_TT/ff.gff gencode.v47.basic.annotation.sorted.gtf /data/leec20/hg38.fa --cage-peak refTSS_v3.3_human_coordinate.hg38.sorted.bed --poly-a ployAlist.txt -o SET1 --fl ../aligned_bams/TEST_TT/ff.flnc_count.txt  --log-version INFO
+```
 
 - Note: the `--fl` can be set for single cell or bulk analysis if info provided
 
 - After build up file, do filter
 
-`pigeon filter SET1_classification.txt -i ../aligned_bams/TEST_TT/ff.gff --mono-exon --log-level  INFO`
+```
+pigeon filter SET1_classification.txt -i ../aligned_bams/TEST_TT/ff.gff --mono-exon --log-level  INFO
+```
 
 - Note: `--mono-exon` remove only single exon transcipts.
   
