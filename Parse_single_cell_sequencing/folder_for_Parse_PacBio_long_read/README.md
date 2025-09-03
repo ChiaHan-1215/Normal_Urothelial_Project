@@ -106,7 +106,21 @@ pigeon prepare ../Parse_Merged_collapse_isoseq_pbmm2_collapse.gff
 pigeon classify Parse_Merged_collapse_isoseq_pbmm2_collapse.sorted.gff gencode.v47.annotation.sorted.gtf /data/leec20/hg38.fa
 
 ```
-#### SQANTI3 is also a good choice
+
+
+#### Peigne workthrough
+https://isoseq.how/classification/workflow.html
+
+- the CAGE file and intropolis can be download form:
+
+
+
+
+
+- If you want to generate a filtered GFF, you need to also provide the GFF that was used as input to pigeon classify
+
+
+#### SQANTI3 is also a good choice, Note: Piegen is based on this tool
 
 https://github.com/ConesaLab/SQANTI3/wiki/Introduction-to-SQANTI3#workflow
 
