@@ -14,7 +14,7 @@ Fastq files:
     
 ------
 
-Approachs:
+#### Approachs:
 
 - Using Pasre own script to clean, align fastqs
 
@@ -49,7 +49,7 @@ cd B02.part_110 ; source myconda ; conda activate parse_v130 ; python /data/leec
 
 ------
 
-- Using PacBio long-read tools, pbmm2 -> iso-seq -> pigen 
+- Using PacBio long-read tools, pbmm2 -> iso-seq -> pigen or SQANTI3 
 - Files:
       - the folder: `/Volumes/data/parse_single_cell/Long_read_pacbio_with_parse_test/ALL_32SMRT_cell_pacbio_files/ISO_seq_collpase/Pigeon_Pac`
    
@@ -106,6 +106,13 @@ pigeon prepare ../Parse_Merged_collapse_isoseq_pbmm2_collapse.gff
 pigeon classify Parse_Merged_collapse_isoseq_pbmm2_collapse.sorted.gff gencode.v47.annotation.sorted.gtf /data/leec20/hg38.fa
 
 ```
+#### SQANTI3 is also a good choice
+
+https://github.com/ConesaLab/SQANTI3/wiki/Introduction-to-SQANTI3#workflow
+
+
+
+
 ----
 ----
 # CUT OFF 
