@@ -113,7 +113,7 @@ https://isoseq.how/classification/workflow.html
 
 - the CAGE file and intropolis can be download form:
 
-
+https://github.com/ConesaLab/SQANTI3/wiki/Running-SQANTI3-Quality-Control#additional-inputs-optional
 
 
 
