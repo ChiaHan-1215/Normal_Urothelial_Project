@@ -18,6 +18,8 @@
   
   sample: 116 sample described in `Sample_table.md`. as for the RNA-seq QC sheet, `114` sample.
 
+  When checking, the missing 3 sample: `SD347567,SD347590, SD347628` , and `SC917163` is not include in original sample sheet. what's that?
+
   BAM files
   
   
