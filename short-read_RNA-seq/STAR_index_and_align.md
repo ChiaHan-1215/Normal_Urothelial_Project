@@ -151,8 +151,8 @@ swarm -t [number cpus] --time [4:00:00] -g [gb for memory] mkdup.swarm
 
 ```
 
-
-### Since the RSEM reuqired aligned to transcriptome sequence, can use salmon tool to generate TPM
+### RSEM can start from fastqs or BAM files
+### We can also use salmon tool to generate TPM
 
 https://salmon.readthedocs.io/en/latest/salmon.html
 
