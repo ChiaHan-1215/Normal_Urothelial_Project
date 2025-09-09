@@ -205,7 +205,10 @@ Once we get the quant.sf file, to make gene TPM we can use `tximport`
 https://bioconductor.org/packages/devel/bioc/vignettes/tximport/inst/doc/tximport.html
 
 
-Below is the Rscipt for handleing mergeing TPMs in isoform and gene level 
+******
+
+### Below is the Rscipt for handleing mergeing TPMs in isoform and gene level 
+### For salmon and RSEM output
 
 ```R
 library(dplyr)
