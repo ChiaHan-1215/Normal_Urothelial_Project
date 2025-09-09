@@ -210,6 +210,7 @@ https://bioconductor.org/packages/devel/bioc/vignettes/tximport/inst/doc/tximpor
 ### Below is the Rscipt for handleing mergeing TPMs in isoform and gene level 
 ### For salmon and RSEM output
 
+
 ```R
 library(dplyr)
 library(tximport)
@@ -276,7 +277,154 @@ rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
 
 gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = SHSY5Y_S01_U1 )
  
+```
 
+
+******
+
+
+```R
+
+library(dplyr)
+library(tximport)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(EnsDb.Hsapiens.v86)
+library(xlsx)
+
+
+setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial_05152025/Noraml_rsem/')
+
+edb <- EnsDb.Hsapiens.v86
+
+tx2gene <- AnnotationDbi::select(
+  edb,
+  keys(edb, keytype="TXNAME"),
+  columns = c("TXNAME", "GENEID"),
+  keytype = "TXNAME"
+)  
+
+names(tx2gene) <- c('transcript_id','gene_id','TXID')
+
+lff <- list.files('.',pattern = ".genes.results")
+# like SetName()
+names(lff) <- gsub(".genes.results", "", basename(lff))
+# check lff to see name match with quant.sf or not
+
+# output summary of isofrom TPM into gene TPM
+
+txi <- tximport(
+  lff,
+  type    = "rsem",
+  txIn = F,
+  txOut = F)
+
+gene_tpm <- txi$abundance
+
+# 1. Extract the unique Ensembl gene IDs you have
+gene_ids <- rownames(gene_tpm)
+gene_ids <- gsub('\\.[0-9]+','',gene_ids)
+
+
+gene_map <- ensembldb::select(
+  edb,
+  keys    = gene_ids,
+  keytype = "GENEID",
+  columns = c("GENEID","GENENAME")
+)
+
+
+# 3. Turn that into a named vector for lookup
+symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
+
+gene_tpm <- as.data.frame(gene_tpm)
+
+gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
+
+# Keep original Ensembl ID row names
+# Add gene symbols as a separate column
+gene_tpm <- gene_tpm %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(gene_tpm)[1] )
+
+
+
+# set name 
+rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
+                             gene_ids,symb[gene_ids])
+
+
+
+
+gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
+
+# match names with sampleID
+
+id <- readxl::read_xls('/Volumes/ifs/DCEG/Projects/DataDelivery/Prokunina/TP0325-RS7-Urothelial-Samples-RNA-seq/TP0325-RS7_QC-SUMMARY.xls')
+id <- data.frame(id)
+id$Vial.Label <- gsub(' ','_',id$Vial.Label)
+id$Vial.Label <- gsub("_RNA$","",id$Vial.Label)
+
+# get the name match 
+
+names(gene_tpm) <- gsub('Sample_','',names(gene_tpm))
+
+# Make a named vector for mapping
+id_map <- setNames(id$Vial.Label, id$CGR.Sample.ID)
+
+# Replace using mapping
+colnames(gene_tpm) <- ifelse(
+  colnames(gene_tpm) %in% names(id_map),
+  id_map[colnames(gene_tpm)],
+  colnames(gene_tpm)   # keep unchanged if not in mapping
+)
+
+
+# Now we save table
+write.csv(gene_tpm,'../Sample_rsem_TPM.csv',row.names = F,quote = F)
+
+############################################################
+############################################################
+############################################################
+
+# For salmon result 
+setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial_05152025/SALMON_Quant_TPM/')
+
+lff <- list.files('.',pattern = '.sf')
+
+names(lff) <- gsub("_quant.sf", "", names(lff))
+names(lff) <- gsub("_salmon", "", names(lff))
+
+
+# output summary of isofrom TPM into gene TPM
+
+txi <- tximport(
+  lff,
+  type    = "salmon",
+  tx2gene = tx2gene,
+  ignoreTxVersion = TRUE
+)
+
+gene_tpm <- txi$abundance %>% as.data.frame()
+
+# 1. Extract the unique Ensembl gene IDs you have
+gene_ids <- rownames(gene_tpm)
+gene_ids <- gsub('\\.[0-9]+','',gene_ids)
+
+
+gene_map <- ensembldb::select(
+  edb,
+  keys    = gene_ids,
+  keytype = "GENEID",
+  columns = c("GENEID","GENENAME")
+)
+
+# 3. Turn that into a named vector for lookup
+symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
+
+# set name 
+rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
+                             gene_ids,symb[gene_ids])
+
+
+gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
 
 
 
