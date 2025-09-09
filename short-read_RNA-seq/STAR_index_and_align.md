@@ -285,6 +285,7 @@ gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = SHSY5Y_S01_U1
 
 ```R
 
+
 library(dplyr)
 library(tximport)
 library(BSgenome.Hsapiens.UCSC.hg38)
@@ -337,23 +338,14 @@ gene_map <- ensembldb::select(
 symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
 
 gene_tpm <- as.data.frame(gene_tpm)
+rownames(gene_tpm) <- gene_ids 
 
-gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
+gene_tpm <- gene_tpm %>% mutate(GENEID=rownames(gene_tpm), .before = names(gene_tpm)[1] )
 
 # Keep original Ensembl ID row names
 # Add gene symbols as a separate column
 gene_tpm <- gene_tpm %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(gene_tpm)[1] )
 
-
-
-# set name 
-rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
-                             gene_ids,symb[gene_ids])
-
-
-
-
-gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
 
 # match names with sampleID
 
@@ -389,8 +381,7 @@ setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial
 
 lff <- list.files('.',pattern = '.sf')
 
-names(lff) <- gsub("_quant.sf", "", names(lff))
-names(lff) <- gsub("_salmon", "", names(lff))
+names(lff) <- gsub("_salmon_quant.sf", "", lff)
 
 
 # output summary of isofrom TPM into gene TPM
@@ -402,10 +393,10 @@ txi <- tximport(
   ignoreTxVersion = TRUE
 )
 
-gene_tpm <- txi$abundance %>% as.data.frame()
+gene_tpm_salmon <- txi$abundance %>% as.data.frame()
 
 # 1. Extract the unique Ensembl gene IDs you have
-gene_ids <- rownames(gene_tpm)
+gene_ids <- rownames(gene_tpm_salmon)
 gene_ids <- gsub('\\.[0-9]+','',gene_ids)
 
 
@@ -419,12 +410,33 @@ gene_map <- ensembldb::select(
 # 3. Turn that into a named vector for lookup
 symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
 
-# set name 
-rownames(gene_tpm) <- ifelse(is.na(symb[gene_ids]),
-                             gene_ids,symb[gene_ids])
+gene_tpm_salmon <- as.data.frame(gene_tpm_salmon)
+gene_tpm_salmon <- gene_tpm_salmon %>% mutate(GENEID=rownames(gene_tpm_salmon), .before = names(gene_tpm_salmon)[1] )
+
+# Keep original Ensembl ID row names
+# Add gene symbols as a separate column
+gene_tpm_salmon <- gene_tpm_salmon %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(gene_tpm_salmon)[1] )
 
 
-gene_tpm <- gene_tpm %>% mutate(GENE=rownames(gene_tpm), .before = names(gene_tpm)[1] )
+# match names with sampleID
+
+id <- readxl::read_xls('/Volumes/ifs/DCEG/Projects/DataDelivery/Prokunina/TP0325-RS7-Urothelial-Samples-RNA-seq/TP0325-RS7_QC-SUMMARY.xls')
+id <- data.frame(id)
+id$Vial.Label <- gsub(' ','_',id$Vial.Label)
+id$Vial.Label <- gsub("_RNA$","",id$Vial.Label)
+
+# Make a named vector for mapping
+id_map <- setNames(id$Vial.Label, id$CGR.Sample.ID)
+
+# Replace using mapping
+colnames(gene_tpm_salmon) <- ifelse(
+  colnames(gene_tpm_salmon) %in% names(id_map),
+  id_map[colnames(gene_tpm_salmon)],
+  colnames(gene_tpm_salmon)   # keep unchanged if not in mapping
+)
+
+# save 
+write.csv(gene_tpm_salmon,'../Sample_salmon_TPM.csv',row.names = F,quote = F)
 
 
 
