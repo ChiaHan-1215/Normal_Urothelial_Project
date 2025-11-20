@@ -12,3 +12,5 @@
 
 
 ### Data: 
+
+**Smaple Gender determine files** the file for sex determine is located in T-drive: 
