@@ -1,9 +1,10 @@
 ### Convert files 
 
-Ref: 
+# In ccad2
+ml plink/2.0
 
 ```
-plink \  
+plink2 \  
 --bfile myFile \  
 --recode vcf-iid \  
 --keep-allele-order \  
