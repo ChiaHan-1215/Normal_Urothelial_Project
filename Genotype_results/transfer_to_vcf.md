@@ -5,10 +5,15 @@
 
 ```
 # In ccad2
-ml plink/2.0
 
 # or plink 1.9?
-#ml plink/1.9
+# ml plink/1.9
+
+
+ml plink/2.0
+ml bgzip/1.15 tabix/1.15 
+
+
 
 plink2 \  
 --bfile myFile \  
