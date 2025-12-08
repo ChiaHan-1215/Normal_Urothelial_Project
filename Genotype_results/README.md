@@ -9,7 +9,8 @@ The file is located in T-drive with plink like inputs
 
 `/DCEG/Projects/DataDelivery/GWAS_Data_Delivery/Mila_Urothelial_Samples_GDAConfluence_CGRGWAS-1123`
 
-
+The Plink generated vcf file: 
+`/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping`
 
 ### Code
 
