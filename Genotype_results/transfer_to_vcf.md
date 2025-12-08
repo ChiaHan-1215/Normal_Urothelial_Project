@@ -7,6 +7,8 @@
 # In ccad2
 ml plink/2.0
 
+# or plink 1.9?
+#ml plink/1.9
 
 plink2 \  
 --bfile myFile \  
