@@ -34,9 +34,18 @@
 
   Following CGR pipeline, do STAR indexing and alignment, the script name `star_index_and_align.md`
   
-  STAR alignmetn
-  RSEM to generated TPM
+  STAR align:
+    
+  MarkDuplication swarm file: `mark_Duplication.swarm`
+  
+  RSEM to generated TPM swarm file: `rsem_cal_expression.swarm`
+
+  Salmon to generated TPM swarm file: `salmon_sw.swarm`
+
   RseQC to QC
+
+
+  
   
 - Results
 -------------------
