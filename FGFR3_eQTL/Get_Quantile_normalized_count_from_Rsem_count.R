@@ -229,7 +229,7 @@ final_data$Clean_SNP_ID <- ifelse(
 colnames(final_data)[colnames(final_data) == "allele"] <- "Ensembl_Alleles_Plus_Strand"
 
 # Organize columns: Metadata first, then Samples
-info_cols <- c("CHR", "POS", "Clean_SNP_ID", "REF", "ALT", 
+info_cols <- c("CHR", "POS","SNP_ID","Clean_SNP_ID", "REF", "ALT", 
                "Ensembl_Alleles_Plus_Strand", "Strand_Status")
 final_data <- final_data[, c(info_cols, sample_names)]
 
