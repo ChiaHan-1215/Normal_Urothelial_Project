@@ -233,13 +233,5 @@ info_cols <- c("CHR", "POS", "Clean_SNP_ID", "REF", "ALT",
                "Ensembl_Alleles_Plus_Strand", "Strand_Status")
 final_data <- final_data[, c(info_cols, sample_names)]
 
-# Check your specific example (4:1719067) to see the change
-example_row <- final_data[final_data$POS == 1719067, ]
-print("Standardized Example Row:")
-print(example_row)
-
-# View head
-head(final_data)
-
 # Write to CSV
 # write.csv(final_data, "Standardized_Genotypes_hg38.csv", row.names = FALSE)
