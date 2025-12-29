@@ -73,7 +73,15 @@ qnorm.DeseqNC.set <- qnorm.DeseqNC.set[,c(349,1:348)]
 3. vcf file from Genotype folder using plink
 
 4. extract FGFR3-TACC3 region GT of interest.
+
+```
+# In CCAD2
+
+ml slurm/
+ml bcftools/
+bcftools view -r chr4:1718666-1810880 NU_sample.vcf.gz -Oz -o FGFR3_sub_NU_sample.vcf.gz
+```
    
-5. use lm model in R to test the unadjust (SNP~TPM) and adjust (SNP~TPM + RACE + SEX)
+6. use lm model in R to test the unadjust (SNP~TPM) and adjust (SNP~TPM + RACE + SEX)
 
    
