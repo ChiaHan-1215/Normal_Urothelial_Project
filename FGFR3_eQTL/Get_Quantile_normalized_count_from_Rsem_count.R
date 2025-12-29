@@ -1,6 +1,3 @@
-# Date: 12292025
-# Goal: Generate quantile normalized rsem expect count
-
 library(dplyr)
 library(tximport)
 library(BSgenome.Hsapiens.UCSC.hg38)
@@ -122,4 +119,127 @@ qnorm.DeseqNC.set$GENESYMBOL <- expected_counts$GENESYMBOL[match(qnorm.DeseqNC.s
 
 # order columns: gene info first, then samples
 qnorm.DeseqNC.set <- qnorm.DeseqNC.set[, c("GENESYMBOL", "GENEID", colnames(cts))]
+qnorm.DeseqNC.set <- qnorm.DeseqNC.set[,c(-1,-3)]
 
+#write.table('')
+
+
+
+### Load VcfR 
+library(vcfR)
+library(biomaRt)
+
+# ==============================================================================
+# 1) LOAD VCF AND EXTRACT DATA
+# ==============================================================================
+vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/vcf_files/FGFR3_sub_NU_sample.vcf.gz"
+vcf.file.tmp <- read.vcfR(vcf_path)
+
+fix_df <- as.data.frame(getFIX(vcf.file.tmp))
+vcf_genotypes.tmp <- extract.gt(
+  vcf.file.tmp, element = "GT", return.alleles = TRUE,
+  IDtoRowNames = TRUE, convertNA = TRUE
+)
+
+geno_with_pos <- cbind(
+  CHR    = as.character(fix_df$CHROM),
+  POS    = as.integer(fix_df$POS),
+  SNP_ID = as.character(fix_df$ID),
+  REF    = as.character(fix_df$REF),
+  ALT    = as.character(fix_df$ALT),
+  as.data.frame(vcf_genotypes.tmp, check.names = FALSE)
+)
+
+# ==============================================================================
+# 2) BIOMART QUERY (hg38)
+# ==============================================================================
+query_chr <- gsub("chr", "", geno_with_pos$CHR, ignore.case = TRUE)
+coords <- paste(query_chr, geno_with_pos$POS, geno_with_pos$POS, sep = ":")
+
+snpMart <- useEnsembl(biomart = "snp", dataset = "hsapiens_snp")
+
+snp_results_raw <- getBM(
+  attributes = c('refsnp_id', 'chrom_start', 'allele'),
+  filters = 'chromosomal_region', 
+  values = coords, 
+  mart = snpMart
+)
+
+# Filter for exact coordinate matches
+snp_results <- snp_results_raw[snp_results_raw$chrom_start %in% geno_with_pos$POS, ]
+
+# ==============================================================================
+# 3) MERGE AND STRAND DETECTION
+# ==============================================================================
+final_data <- merge(
+  geno_with_pos, 
+  snp_results, 
+  by.x = "POS", 
+  by.y = "chrom_start",
+  all.x = TRUE
+)
+
+# Function to get the complement (A <-> T, C <-> G)
+complement_seq <- function(sequence) {
+  # Handles single bases or strings like "A/C"
+  chartr("ATCG", "TAGC", sequence)
+}
+
+# Identify Strand Status
+final_data$Strand_Status <- sapply(1:nrow(final_data), function(i) {
+  vcf_ref <- final_data$REF[i]
+  ens_alleles <- final_data$allele[i]
+  if (is.na(ens_alleles)) return("Unknown")
+  
+  if (grepl(vcf_ref, ens_alleles)) {
+    return("Forward")
+  } else if (grepl(complement_seq(vcf_ref), ens_alleles)) {
+    return("Reverse/Flipped")
+  } else {
+    return("Mismatch")
+  }
+})
+
+# ==============================================================================
+# 4) AUTOMATIC GENOTYPE UNF-FLIPPING (The Fix)
+# ==============================================================================
+# This section iterates through all sample columns and complements the alleles
+# ONLY if the Strand_Status is "Reverse/Flipped".
+
+sample_names <- colnames(vcf_genotypes.tmp)
+
+for (sample in sample_names) {
+  # Apply complement only where flipped
+  final_data[[sample]] <- ifelse(
+    final_data$Strand_Status == "Reverse/Flipped",
+    complement_seq(final_data[[sample]]), 
+    final_data[[sample]]
+  )
+}
+
+# ==============================================================================
+# 5) FINAL CLEANUP AND EXPORT
+# ==============================================================================
+# Update IDs to official rsIDs
+final_data$Clean_SNP_ID <- ifelse(
+  !is.na(final_data$refsnp_id), final_data$refsnp_id, final_data$SNP_ID
+)
+
+# Rename Ensembl column
+colnames(final_data)[colnames(final_data) == "allele"] <- "Ensembl_Alleles_Plus_Strand"
+
+# Organize columns: Metadata first, then Samples
+info_cols <- c("CHR", "POS", "Clean_SNP_ID", "REF", "ALT", 
+               "Ensembl_Alleles_Plus_Strand", "Strand_Status")
+final_data <- final_data[, c(info_cols, sample_names)]
+
+# Check your specific example (4:1719067) to see the change
+example_row <- final_data[final_data$POS == 1719067, ]
+print("Standardized Example Row:")
+print(example_row)
+
+# View head
+head(final_data)
+
+# Write to CSV
+# write.csv(final_data, "Standardized_Genotypes_hg38.csv", row.names = FALSE)
