@@ -210,6 +210,7 @@ sample_names <- colnames(vcf_genotypes.tmp)
 
 for (sample in sample_names) {
   # Apply complement only where flipped
+  # sample <- sample_names[2]
   final_data[[sample]] <- ifelse(
     final_data$Strand_Status == "Reverse/Flipped",
     complement_seq(final_data[[sample]]), 
@@ -232,6 +233,48 @@ colnames(final_data)[colnames(final_data) == "allele"] <- "Ensembl_Alleles_Plus_
 info_cols <- c("CHR", "POS","SNP_ID","Clean_SNP_ID", "REF", "ALT", 
                "Ensembl_Alleles_Plus_Strand", "Strand_Status")
 final_data <- final_data[, c(info_cols, sample_names)]
+
+# Keep the final data that both REF and ALT are not NA
+final_data <- final_data %>%
+  dplyr::filter(!is.na(REF) & !is.na(ALT))
+
+
+# modified the sample name 
+
+
+colnames(qnorm.DeseqNC.set)
+colnames(final_data)
+
+# load sample manifest 
+gt_sample_man <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/SR0325-017_1_AnalysisManifest_48202503941.csv',
+                          skip = 10,header = T)
+
+gt_sample_man$Sample_Name <- gsub(" ","_",gt_sample_man$Sample_Name)
+gt_sample_man$Sample_Name <- gsub("_DNA","",gt_sample_man$Sample_Name)
+
+# cahnge name 
+
+guide <- setNames(gt_sample_man$Sample_Name,gt_sample_man$Sample_ID)
+
+old_names <- colnames(final_data)[9:ncol(final_data)]
+
+# Replace only where a match exists in guide
+new_names <- ifelse(
+  old_names %in% names(guide),
+  guide[old_names],
+  old_names
+)
+
+colnames(final_data)[9:ncol(final_data)] <- new_names
+
+
+# Now is to transfrom the data 
+
+
+
+
+
+
 
 # Write to CSV
 # write.csv(final_data, "Standardized_Genotypes_hg38.csv", row.names = FALSE)
