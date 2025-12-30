@@ -246,8 +246,7 @@ colnames(qnorm.DeseqNC.set)
 colnames(final_data)
 
 # load sample manifest 
-gt_sample_man <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/SR0325-017_1_AnalysisManifest_48202503941.csv',
-                          skip = 10,header = T)
+gt_sample_man <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/SR0325-017_1_QC_Report_48202503941.xlsx')
 
 gt_sample_man$Sample_Name <- gsub(" ","_",gt_sample_man$Sample_Name)
 gt_sample_man$Sample_Name <- gsub("_DNA","",gt_sample_man$Sample_Name)
@@ -270,11 +269,35 @@ colnames(final_data)[9:ncol(final_data)] <- new_names
 
 # Now is to transfrom the data 
 
+# Extract FGFR3 
+
+FGFR3_qn <- qnorm.DeseqNC.set %>% dplyr::filter(GENEID == "FGFR3")
+FGFR3_qn <- t(FGFR3_qn) %>% as.data.frame()
+FGFR3_qn$Sample_Name <- rownames(FGFR3_qn)
+FGFR3_qn <- FGFR3_qn[-1,]
+FGFR3_qn <- FGFR3_qn[,c(2,1)]
+
+# Test it use rsid only 
+final_data_sub <- final_data[grep("rs",final_data$SNP_ID),]
+final_data_sub <- final_data_sub[,c(4,9:128)]
+final_data_sub <- t(final_data_sub) %>% as.data.frame()
+names(final_data_sub) <- final_data_sub[1,]
+final_data_sub <- final_data_sub[-1,]
+
+# remove duplicateion 
+final_data_sub <- final_data_sub[,!duplicated(names(final_data_sub))]
+
+final_data_sub <- final_data_sub %>% mutate(Sample_Name=rownames(final_data_sub),.before = 1)
+
+FGFR3_Merged_data <- left_join(FGFR3_qn,final_data_sub,by="Sample_Name")
+
+# Load manifest file of sample age sex etc 
+gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,Ancestry)
+
+final_FGFR3 <- left_join(gt_sample_man_sub,FGFR3_Merged_data,by = 'Sample_Name')
+
+# Done save 
+# write.table(final_FGFR3,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/FGFR3_qn.snp.Test.csv',row.names = F,quote = F,sep = ',')
 
 
-
-
-
-
-# Write to CSV
-# write.csv(final_data, "Standardized_Genotypes_hg38.csv", row.names = FALSE)
+  
