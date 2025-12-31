@@ -84,4 +84,7 @@ bcftools view -r chr4:1718666-1810880 NU_sample.vcf.gz -Oz -o FGFR3_sub_NU_sampl
    
 6. use lm model in R to test the unadjust (SNP~TPM) and adjust (SNP~TPM + RACE + SEX)
 
+
+### The eQTL analysis can be found also in Note "model analysis code and writing up for Github readme"
+
    
