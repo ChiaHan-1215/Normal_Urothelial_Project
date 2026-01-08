@@ -12,7 +12,6 @@
 
 ```R
 
-
 ### Load VcfR 
 library(vcfR)
 library(biomaRt)
@@ -75,6 +74,36 @@ mani_bladder <- mani %>% dplyr::filter(SMTS == 'Bladder')
 mani_bladder <- mani_bladder[,c(1,2)]
 names(mani_bladder)[2] <- "Sample_ID"
 mani_bladder_with_iso <- inner_join(iso,mani_bladder,by = 'Sample_ID')
+rownames(mani_bladder_with_iso) <- mani_bladder_with_iso$Sample_ID
+mani_bladder_with_iso <- mani_bladder_with_iso[,c(-1,-12)]
+
+
+# Now get normalized count 
+
+library(edgeR)
+
+dge <- DGEList(counts = mani_bladder_with_iso)
+
+# calculate normalization factors
+dge <- calcNormFactors(dge, method = "TMM")
+
+# get normalized counts
+normalized_counts <- cpm(dge)
+head(normalized_counts[1:10,1:10])
+dim(normalized_counts)
+
+#
+
+inv_norm_transform <- function(x) {
+  qnorm((rank(x, na.last = "keep") - 0.5) / sum(!is.na(x)))
+}
+
+# apply inverse normal transform to each gene
+final_normalized <- t(apply(normalized_counts, 1, inv_norm_transform))
+final_normalized <- as.data.frame(final_normalized)
+head(final_normalized[1:5,1:10])
+
+
 
 
 ```
