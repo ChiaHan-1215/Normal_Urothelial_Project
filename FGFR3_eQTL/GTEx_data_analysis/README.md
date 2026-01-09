@@ -49,10 +49,11 @@ geno_df.tmp <- as.data.frame(t(vcf_genotypes.tmp))
 # %in% give T/F logical output while match gives vector position 
 # names(geno_df.tmp) <- snp.list$rsid[ match(gsub("^chr5_|_[A-Z]_.+", "", names(geno_df.tmp)), gsub("chr5:|:[A-Z]", "", snp.list$SNP.pick_hg38)) ]
 geno_df.tmp$ID_person <- row.names(geno_df.tmp)
-geno_df.tmp <- geno_df.tmp[,c("ID_person",setdiff(names(geno_df.tmp),"ID_person"))]
-geno_df.tmp <- data.frame(lapply(geno_df.tmp, function(x){ gsub("\\/", " ", x)}))
 geno_df.tmp$GTEx_ID <- sub("-[^-]+$", "", geno_df.tmp$ID_person)
+geno_df.tmp <- geno_df.tmp[,c("ID_person","GTEx_ID",setdiff(names(geno_df.tmp),c("ID_person","GTEx_ID")))]
 
+# remove GTEx-xxx-xxxx-xx to GTEx-xxxx
+geno_df.tmp$GTEx_ID <- sub("^([^-]+-[^-]+).*$", "\\1", geno_df.tmp$ID_person)
 
 
 # load the sample isofom count
@@ -102,6 +103,13 @@ inv_norm_transform <- function(x) {
 final_normalized <- t(apply(normalized_counts, 1, inv_norm_transform))
 final_normalized <- as.data.frame(final_normalized)
 head(final_normalized[1:5,1:10])
+
+# merge data 
+
+names(geno_df.tmp)[1]
+
+final_normalized <-final_normalized %>% mutate(GTEx_ID=rownames(final_normalized),.before = 1)
+final_normalized <-final_normalized %>% mutate(ID_person=sub("^(([^-]+-[^-]+)).*$", "\\1", final_normalized$GTEx_ID),.before = 2)
 
 
 
