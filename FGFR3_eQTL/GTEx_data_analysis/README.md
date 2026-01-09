@@ -108,10 +108,10 @@ head(final_normalized[1:5,1:10])
 
 names(geno_df.tmp)[1]
 
-final_normalized <-final_normalized %>% mutate(GTEx_ID=rownames(final_normalized),.before = 1)
-final_normalized <-final_normalized %>% mutate(ID_person=sub("^(([^-]+-[^-]+)).*$", "\\1", final_normalized$GTEx_ID),.before = 2)
+final_normalized <-final_normalized %>% mutate(Sample_ID=rownames(final_normalized),.before = 1)
+final_normalized <-final_normalized %>% mutate(GTEx_ID=sub("^(([^-]+-[^-]+)).*$", "\\1", final_normalized$Sample_ID),.before = 2)
 
-
+Mg_data <- left_join(final_normalized,geno_df.tmp,by='GTEx_ID')
 
 
 ```
