@@ -54,11 +54,17 @@ geno_df.tmp <- geno_df.tmp[,c("ID_person","GTEx_ID",setdiff(names(geno_df.tmp),c
 
 # remove GTEx-xxx-xxxx-xx to GTEx-xxxx
 geno_df.tmp$GTEx_ID <- sub("^([^-]+-[^-]+).*$", "\\1", geno_df.tmp$ID_person)
+geno_df.tmp <- geno_df.tmp[,-1]
+# md the SNP column names 
+# strip the trailing _123
+nm <- gsub("_[0-9]+$", "", names(geno_df.tmp))
+# make any duplicates unique: x, x_1, x_2, ...
+names(geno_df.tmp) <- make.unique(nm, sep = "_")
+geno_df.tmp <- data.frame(lapply(geno_df.tmp, function(x){ gsub("\\/", " ", x)}))
+
 
 
 # load the sample isofom count
-
-
 iso <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/project_FGFR3/FGFR3_iso.txt')
 iso <- t(iso) %>% as.data.frame()
 names(iso) <- iso[1,]
@@ -104,14 +110,21 @@ final_normalized <- t(apply(normalized_counts, 1, inv_norm_transform))
 final_normalized <- as.data.frame(final_normalized)
 head(final_normalized[1:5,1:10])
 
-# merge data 
 
-names(geno_df.tmp)[1]
 
 final_normalized <-final_normalized %>% mutate(Sample_ID=rownames(final_normalized),.before = 1)
 final_normalized <-final_normalized %>% mutate(GTEx_ID=sub("^(([^-]+-[^-]+)).*$", "\\1", final_normalized$Sample_ID),.before = 2)
 
+
+# merge data 
 Mg_data <- left_join(final_normalized,geno_df.tmp,by='GTEx_ID')
+
+# Now add 0,1,2 to the GT 
+
+
+
+
+
 
 
 ```
