@@ -119,8 +119,59 @@ final_normalized <-final_normalized %>% mutate(GTEx_ID=sub("^(([^-]+-[^-]+)).*$"
 # merge data 
 Mg_data <- left_join(final_normalized,geno_df.tmp,by='GTEx_ID')
 
-# Now add 0,1,2 to the GT 
+# Use portion as test, but can be whole dataset after 
+Mg_data_s <- Mg_data[,c(1:8,grep('rs',names(Mg_data)))]
 
+# Now add 0,1,2 to the GT 
+for (i in grep('rs',names(Mg_data),value = T)) {
+  #i <- "rs3135861"
+  n1 <- paste0(i, "_add")
+  
+  # 1. Create frequency table and ensure it's a clean data frame
+  tp1 <- table(Mg_data[[i]], useNA = "no")
+  if (length(tp1) == 0) next # Skip if column is empty
+  
+  tp1 <- as.data.frame(tp1, stringsAsFactors = FALSE)
+  colnames(tp1) <- c("Genotype", "Freq")
+  
+  # 2. Split Genotype into Alleles (e.g., "G/G" -> "G", "G")
+  tp1 <- tp1 %>%
+    separate(Genotype, into = c("A1", "A2"), sep = " ", 
+             fill = "right", extra = "merge", remove = FALSE)
+  
+  # 3. Identify Homozygotes (where Allele 1 == Allele 2)
+  # We handle the case where A2 might be NA (e.g. if genotype was just "G")
+  SAMEGT <- tp1 %>% 
+    filter(!is.na(A1) & !is.na(A2) & A1 == A2) %>%
+    arrange(Freq) # Sort by frequency (Ascending: Minor first)
+  
+  # 4. Identify Heterozygotes (anything not in SAMEGT)
+  tp_left <- anti_join(tp1, SAMEGT, by = "Genotype")
+  
+  # 5. Recode based on the number of homozygotes found
+  if (nrow(SAMEGT) == 2) {
+    # Typical case: 2 homozygotes (0 and 2) and 1 heterozygote (1)
+    recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0; '", 
+                         SAMEGT$Genotype[2], "'=2; '", 
+                         tp_left$Genotype[1], "'=1")
+    Mg_data_s[[n1]] <- car::recode(Mg_data_s[[i]], recode_str)
+    
+  } else if (nrow(SAMEGT) == 1) {
+    # Case with only 1 homozygote (recode to 0) and potentially 1 heterozygote (recode to 1)
+    if (nrow(tp_left) >= 1) {
+      recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0; '", tp_left$Genotype[1], "'=1")
+    } else {
+      recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0")
+    }
+    Mg_data_s[[n1]] <- car::recode(Mg_data_s[[i]], recode_str)
+  }
+}
+
+Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:8],setdiff(names(Mg_data_s),names(Mg_data_s)[1:8]) %>% sort())]
+
+
+
+## Do lm()
 
 
 
