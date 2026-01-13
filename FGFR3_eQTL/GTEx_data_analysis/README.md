@@ -15,7 +15,8 @@
 ### Load VcfR 
 library(vcfR)
 library(biomaRt)
-
+library(dplyr)
+library(tidyr)
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
@@ -118,9 +119,23 @@ final_normalized <-final_normalized %>% mutate(GTEx_ID=sub("^(([^-]+-[^-]+)).*$"
 
 # merge data 
 Mg_data <- left_join(final_normalized,geno_df.tmp,by='GTEx_ID')
+# merge sample sex age info
+
+GTEx_info <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/GTEx_analysis_v10/Metadata_Files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt')
+names(GTEx_info)[1] <- "GTEx_ID"
+
+
+Mg_data <- Mg_data %>%
+  left_join(GTEx_info, by = "GTEx_ID") %>%
+  dplyr::select(GTEx_ID,
+         dplyr::all_of(names(GTEx_info)[names(GTEx_info) != "GTEx_ID"]),
+         dplyr::everything())
 
 # Use portion as test, but can be whole dataset after 
 Mg_data_s <- Mg_data[,c(1:8,grep('rs',names(Mg_data)))]
+
+detach("package:EnsDb.Hsapiens.v86", unload = TRUE)
+detach("package:ensembldb", unload = TRUE)
 
 # Now add 0,1,2 to the GT 
 for (i in grep('rs',names(Mg_data),value = T)) {
@@ -171,7 +186,176 @@ Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:8],setdiff(names(Mg_data_s),names(M
 
 
 
-## Do lm()
+################################################################################################
+########################################################################## Do lm()
+################################################################################################
+
+
+inputdf <- Mg_data_s
+
+# 
+df.out <- data.frame()
+df_count.summary <- data.frame()
+# 
+
+
+
+
+for (i in grep("_add",names(inputdf),value = T)){
+  # i <- "rs11248073_add"
+  # i <- "rs111457485_add" 
+  # i <- "rs16997913_add"
+  
+  
+  function.names <- c("max", "min", "mean", "median", "sd")
+  
+  for ( k in function.names ) {
+    # k <- function.names[3]
+    # the all the TPM in all tissue
+    # consider dealing with NA
+    
+    # & inputdf[[i]] != 0
+    # names(inputdf[6:135]
+    
+    # remove SNPs that are NA and empty
+    df.tmp <- inputdf[,c(names(inputdf[4]), gsub("_add", "", i))] %>%
+      filter(!is.na(inputdf[[gsub("_add", "", i)]]) & inputdf[[gsub("_add", "", i)]] != ""  ) %>%
+      group_by(get(noquote(gsub("_add", "", i)))) %>%
+      dplyr::summarise(across(where(is.numeric), get(k), na.rm=TRUE)) %>%
+      data.frame()
+    
+    df.tmp$variable <- i
+    df.tmp$stat <- k
+    
+    df.tmp <- df.tmp %>% dplyr::select(c("stat", "variable", everything())) 
+    names(df.tmp)[3] <- "genotype"
+    
+    df_count.summary <- rbind(df_count.summary, df.tmp)
+    df_count.summary[] <- lapply(df_count.summary, function(x) if(is.numeric(x)) round(x, 2) else x)
+    
+    
+    
+    
+  }
+  
+  
+  
+  # names(inputdf[6:135]
+  
+  for(j in names(inputdf[3:8])){
+    
+    # j <- "FGFR3"
+    # j <- names(inputdf[8:16])[1]
+    # j <- names(inputdf[6:135])[20]
+    
+    # 3 model, all sample size should be same, add Permutation column
+    
+    # unadjust: TPM ~ SNP 
+    # adjust: TPM ~ SNP + age + sex
+    
+    # for subsets
+    # dynamically generate formula
+    fmla_un <- as.formula(paste0(j, "~" , i))
+    fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + Ancestry "))
+    #fmla_adj_ebv <- as.formula(paste0(j, "~" , i, " + Age_final + sex_final + EBV_final"))
+    
+    # Filter the data to exclude rows where the SNP dosage is 0
+    filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
+    
+    # counting GT of how many sample 
+    GT.count <- filtered_0_1_2_only
+    
+    GT.count.0a <- GT.count[ which(GT.count[,i] == 0), ]
+    GT.count.0b <- as.character(unique(GT.count.0a[gsub("_add", "", i)]))
+    GT.count.1a <- GT.count[ which(GT.count[,i] == 1), ]
+    GT.count.1b <- as.character(unique(GT.count.1a[gsub("_add", "", i)]))
+    GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
+    GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
+    
+    ######################################################
+    ######### make 0 as 1, not sure we need here #########
+    # filtered_0_1_2_only <- filtered_0_1_2_only %>% mutate(!!i := ifelse(.[[i]] == 0, 1, .[[i]]))
+    ######################################################
+    
+    # fit lm model
+    fit_un <- lm(fmla_un, filtered_0_1_2_only)
+    fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
+    
+    
+    
+    ########################################
+    # run permutation #
+    ########################################
+    
+    prm <- lmp(fmla_un, data = filtered_0_1_2_only, perm = "Prob")
+    prm_adj <- lmp(fmla_adj, data = filtered_0_1_2_only, perm = "Prob")
+    
+    # Calculate the number of non-zero samples in j where i is not NA
+    
+    # use this since the lm() is done based on the sample inculde GT
+    non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
+    
+    #non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
+    
+    # Calculate mean values for SNP dosages 1 and 2
+    mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
+    mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
+    
+    
+    
+    
+    # create temporary data frame
+    df.lm <- data.frame(
+      
+      snp = i,
+      variable = j,
+      sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
+      sample_over_zero = non_zero_count,
+      perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
+      
+      geno_0 = GT.count.0b,
+      geno_1 = GT.count.1b,
+      geno_2 = GT.count.2b,
+      
+      n_0 = nrow(GT.count.0a),
+      n_1 = nrow(GT.count.1a),
+      n_2 = nrow(GT.count.2a),
+      
+      #mean_value_0_and_1=mean_value_1,
+      #mean_value_2=mean_value_2,
+      
+      
+      
+      # add lm() result
+      p.value = tryCatch({coef(summary(fit_un))[2,4]}, error=function(e){
+        print(paste0('error of NA'))
+        return(NA)}) ,
+      
+      p.prm = tryCatch({coef(summary(prm))[2,3]}, error=function(e){
+        print(paste0('error of NA'))
+        return(NA)}),
+      
+      
+      
+      beta = tryCatch(round(coef(summary(fit_un))[2,1],4), error=function(e){print(paste0('error of tissue '))
+        return(NA)}),
+      
+      #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
+      
+      p.value_adj_sex_age = coef(summary(fit_adj))[2,4],
+      p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
+      beta_adj_sex_age = coef(summary(fit_adj))[2,1],
+      StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4))
+    
+    
+    # bind rows of temporary data frame to the results data frame
+    
+    df.out <- rbind(df.out, df.lm)
+    
+    
+  }
+}
+
 
 
 
