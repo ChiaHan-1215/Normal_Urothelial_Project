@@ -4,7 +4,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 library(EnsDb.Hsapiens.v86)
 library(xlsx)
 library(edgeR)
-library(tidyr)
+
 
 setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/RNA-seq/RNAseq_Normal_Urothelial_05152025/Noraml_rsem/')
 
@@ -32,11 +32,7 @@ txi <- tximport(
   txIn = F,
   txOut = F)
 
-# get the rawcounts
 expected_counts <- txi$counts
-# get the TPMs
-# expected_counts <- txi$abundance
-
 
 # 1. Extract the unique Ensembl gene IDs you have
 gene_ids <- rownames(expected_counts)
@@ -64,6 +60,55 @@ expected_counts <- expected_counts %>% mutate(GENEID=rownames(expected_counts), 
 expected_counts <- expected_counts %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(expected_counts)[1] )
 
 
+##################################################################################################################
+### The option below is for getting isofom raw count #############################################################
+
+names(tx2gene) <- c('transcript_id','gene_id','TXID')
+
+lff <- list.files('.',pattern = "isoforms")
+# like SetName()
+names(lff) <- gsub(".isoforms.results", "", basename(lff))
+# check lff to see name match with quant.sf or not
+
+# output summary of isofrom TPM into gene TPM
+
+txi <- tximport(
+  lff,
+  type    = "rsem",
+  txIn = T,
+  txOut = T)
+
+# get the rawcounts
+expected_counts <- txi$counts
+# get the TPMs
+# expected_counts <- txi$abundance
+
+# 1. Extract the unique Ensembl gene IDs you have
+gene_ids <- rownames(expected_counts)
+gene_ids <- gsub('\\.[0-9]+','',gene_ids)
+
+
+gene_map <- ensembldb::select(
+  edb,
+  keys    = gene_ids,
+  keytype = "TXNAME",
+  columns = c("TXNAME", "GENEID", "GENENAME")
+)
+
+# 3. Turn that into a named vector for lookup
+symb <- setNames(gene_map$GENENAME, gene_map$TXNAME)
+
+expected_counts <- as.data.frame(expected_counts)
+rownames(expected_counts) <- gene_ids 
+
+expected_counts <- expected_counts %>% mutate(GENEID=rownames(expected_counts), .before = names(expected_counts)[1] )
+
+# Keep original Ensembl ID row names
+# Add gene symbols as a separate column
+expected_counts <- expected_counts %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(expected_counts)[1] )
+
+##################################################################################################################
+
 # match names with sampleID
 
 id <- readxl::read_xls('/Volumes/ifs/DCEG/Projects/DataDelivery/Prokunina/TP0325-RS7-Urothelial-Samples-RNA-seq/TP0325-RS7_QC-SUMMARY.xls')
@@ -88,6 +133,9 @@ colnames(expected_counts) <- ifelse(
 
 # Now we save table
 # write.csv(expected_counts,'../Sample_Expected_gene_counts.csv',row.names = F,quote = F)
+
+library(edgeR)
+
 # sample columns = everything except the two annotation columns
 sample_cols <- setdiff(colnames(expected_counts), c("GENESYMBOL", "GENEID"))
 
