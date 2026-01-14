@@ -1,3 +1,34 @@
+### Date: 01142025
+
+- GTEx:
+
+  - Run GWAS marker for FGFR3 first
+
+  - To explore FGFR3 bulk epression across tissue, plot is below:  https://gtexportal.org/home/gene/ZNF320/geneExpressionTab
+
+  - To explre FGFR3 iso-expression for 77 blader vs smoth muscle, make a plot, extract iso TPM for these group, make plot
+
+  - Finalized table of GTEx 77 bladder tissue isoform normalized value with sex age race with GT FGFR3-tacc3 region
+
+
+
+- Parse Normal Urth:
+Run GWAS marker for FGFR3 first
+
+		FGFR3:
+		- GTEx compare FGFR3 isoform expression plot to see if similiar GTEx 
+		- Finalized table of bladder tissue isoform normalized value with sex race with GT FGFR3-tacc3 region
+
+
+		Alos for GWAS wide gene, consult Oscar to select TAD region and GWAS
+
+
+
+
+
+
+
+
 ### Date: 12232025
 
 ### Goal: The FGFR3 expression with SNPs eQTL
