@@ -139,12 +139,21 @@ detach("package:EnsDb.Hsapiens.v86", unload = TRUE)
 detach("package:ensembldb", unload = TRUE)
 
 # Now add 0,1,2 to the GT 
-for (i in grep('rs',names(Mg_data),value = T)) {
-  #i <- "rs3135861"
+
+missing_gt <- c(".", "", "NA")
+
+for (i in grep('rs',names(Mg_data_s),value = T)) {
+  #i <- "rs372189430"
   n1 <- paste0(i, "_add")
   
+  # --- 0) Normalize missing genotype codes to NA ---
+  x <- Mg_data_s[[i]]
+  x[x %in% missing_gt] <- NA
+  Mg_data_s[[i]] <- x  # write back so downstream uses cleaned data
+  
+  
   # 1. Create frequency table and ensure it's a clean data frame
-  tp1 <- table(Mg_data[[i]], useNA = "no")
+  tp1 <- table(Mg_data_s[[i]], useNA = "no")
   if (length(tp1) == 0) next # Skip if column is empty
   
   tp1 <- as.data.frame(tp1, stringsAsFactors = FALSE)
@@ -365,5 +374,11 @@ for (i in grep("_add",names(inputdf),value = T)){
     
   }
 }
+
+
+
+
+
+
 
 ```
