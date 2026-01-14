@@ -22,7 +22,7 @@ library(tidyr)
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
 
-# load cov
+# load cov, for PC studd
 
 cov <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/GTEx_analysis_v10/QTL/eQTL_covariates/Bladder.v10.covariates.txt')
 cov <- t(cov) %>% as.data.frame()
@@ -122,15 +122,21 @@ final_normalized <-final_normalized %>% mutate(GTEx_ID=sub("^(([^-]+-[^-]+)).*$"
 Mg_data <- left_join(final_normalized,geno_df.tmp,by='GTEx_ID')
 # merge sample sex age info
 
-GTEx_info <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/GTEx_analysis_v10/Metadata_Files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt')
+GTEx_info <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/GTEx_analysis_v10/Metadata_Files/GTEx_Analysis_2022-06-06_v10_Annotations_GTEx_Analysis_2022-06-06_v10_Annotations_SubjectPhenotypesDS.txt')
 names(GTEx_info)[1] <- "GTEx_ID"
-
+GTEx_info <- GTEx_info[,c(1,3,4,5)]
 
 Mg_data <- Mg_data %>%
   left_join(GTEx_info, by = "GTEx_ID") %>%
   dplyr::select(GTEx_ID,
-         dplyr::all_of(names(GTEx_info)[names(GTEx_info) != "GTEx_ID"]),
-         dplyr::everything())
+                dplyr::all_of(names(GTEx_info)[names(GTEx_info) != "GTEx_ID"]),
+                dplyr::everything())
+
+# write.table('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/project_FGFR3/GTEx_v10_FGFR3_iso_normalized_with_GT.csv',col.names = T,row.names = F,quote = F,sep = ',')
+
+
+
+# SELECT GWAS MERKER FIRST TO TEST
 
 # Use portion as test, but can be whole dataset after 
 Mg_data_s <- Mg_data[,c(1:15,grep('rs',names(Mg_data)))]
@@ -277,7 +283,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     # dynamically generate formula
     fmla_un <- as.formula(paste0(j, "~" , i))
     fmla_adj <- as.formula(paste0(j, "~" , i, " + SEX + AGE + DTHHRDY "))
-
+    
     # Filter the data to exclude rows where the SNP dosage is 0
     filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
     
