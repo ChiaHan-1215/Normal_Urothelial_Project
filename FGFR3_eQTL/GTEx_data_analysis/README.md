@@ -12,6 +12,7 @@
 
 ```R
 
+
 ### Load VcfR 
 library(vcfR)
 library(biomaRt)
@@ -132,7 +133,7 @@ Mg_data <- Mg_data %>%
          dplyr::everything())
 
 # Use portion as test, but can be whole dataset after 
-Mg_data_s <- Mg_data[,c(1:8,grep('rs',names(Mg_data)))]
+Mg_data_s <- Mg_data[,c(1:15,grep('rs',names(Mg_data)))]
 
 detach("package:EnsDb.Hsapiens.v86", unload = TRUE)
 detach("package:ensembldb", unload = TRUE)
@@ -182,7 +183,7 @@ for (i in grep('rs',names(Mg_data),value = T)) {
   }
 }
 
-Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:8],setdiff(names(Mg_data_s),names(Mg_data_s)[1:8]) %>% sort())]
+Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:15],setdiff(names(Mg_data_s),names(Mg_data_s)[1:15]) %>% sort())]
 
 
 
@@ -190,8 +191,18 @@ Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:8],setdiff(names(Mg_data_s),names(M
 ########################################################################## Do lm()
 ################################################################################################
 
-
 inputdf <- Mg_data_s
+# check the sex race age value to set it right 
+inputdf$SEX <- factor(inputdf$SEX, levels = c(1, 2))
+inputdf$AGE <- factor(
+  inputdf$AGE,
+  levels = c("20-29", "30-39", "40-49", "50-59", "60-69", "70-79"),
+  ordered = TRUE
+)
+inputdf$DTHHRDY <- factor(inputdf$DTHHRDY)
+
+
+
 
 # 
 df.out <- data.frame()
@@ -202,7 +213,7 @@ df_count.summary <- data.frame()
 
 
 for (i in grep("_add",names(inputdf),value = T)){
-  # i <- "rs11248073_add"
+  # i <- "rs61735104_add"
   # i <- "rs111457485_add" 
   # i <- "rs16997913_add"
   
@@ -217,8 +228,8 @@ for (i in grep("_add",names(inputdf),value = T)){
     # & inputdf[[i]] != 0
     # names(inputdf[6:135]
     
-    # remove SNPs that are NA and empty
-    df.tmp <- inputdf[,c(names(inputdf[4]), gsub("_add", "", i))] %>%
+    # remove SNPs that are NA and empty, the inputdf is select the gene 
+    df.tmp <- inputdf[,c(names(inputdf[6:15]), gsub("_add", "", i))] %>%
       filter(!is.na(inputdf[[gsub("_add", "", i)]]) & inputdf[[gsub("_add", "", i)]] != ""  ) %>%
       group_by(get(noquote(gsub("_add", "", i)))) %>%
       dplyr::summarise(across(where(is.numeric), get(k), na.rm=TRUE)) %>%
@@ -242,10 +253,10 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   # names(inputdf[6:135]
   
-  for(j in names(inputdf[3:8])){
+  for(j in names(inputdf[6:15])){
     
     # j <- "FGFR3"
-    # j <- names(inputdf[8:16])[1]
+    # j <- "ENST00000481110.7"
     # j <- names(inputdf[6:135])[20]
     
     # 3 model, all sample size should be same, add Permutation column
@@ -256,9 +267,8 @@ for (i in grep("_add",names(inputdf),value = T)){
     # for subsets
     # dynamically generate formula
     fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + Ancestry "))
-    #fmla_adj_ebv <- as.formula(paste0(j, "~" , i, " + Age_final + sex_final + EBV_final"))
-    
+    fmla_adj <- as.formula(paste0(j, "~" , i, " + SEX + AGE + DTHHRDY "))
+
     # Filter the data to exclude rows where the SNP dosage is 0
     filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
     
@@ -355,11 +365,5 @@ for (i in grep("_add",names(inputdf),value = T)){
     
   }
 }
-
-
-
-
-
-
 
 ```
