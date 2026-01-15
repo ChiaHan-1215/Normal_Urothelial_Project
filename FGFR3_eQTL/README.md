@@ -1,5 +1,7 @@
 ### Date: 01142025
 
+- For FGFR3, mark wuch isofom is main one and which is skipping exons
+
 - GTEx:
 
   - Run GWAS marker for FGFR3 first
