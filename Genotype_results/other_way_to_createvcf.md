@@ -1,82 +1,75 @@
+# FGFR3 Variant Annotation Pipeline (hg38)
 
-# =============================================================================
-# FGFR3 VARIANT ANNOTATION PIPELINE (hg38)
-# ==============================================================================
+This pipeline handles the downloading of references, standardization of chromosome naming, annotation of sample VCFs using dbSNP, and the extraction of the FGFR3 gene region.
 
-# --- PHASE 1: REFERENCE & DBSNP PREPARATION ---
+---
 
-# 1. Download hg38 Reference Genome
-wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+### Full Pipeline Code
 
-# 2. Download dbSNP Raw Data and Index
-wget https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz
-wget https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz.tbi
+```bash
+# ==========================================
+# 1. REFERENCE & DBSNP PREPARATION
+# ==========================================
 
-# 3. Download the Assembly Report
-wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_assembly_report.txt
+# Download hg38 reference genome
+wget [https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz](https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz)
 
-# 4. Generate the Chromosome Mapping file (local_rename.txt)
-# This maps NCBI RefSeq IDs (Column 7) to UCSC Names (Column 10)
+# Download dbSNP VCF and index from NCBI
+wget [https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz](https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz)
+wget [https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz.tbi](https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz.tbi)
+
+# Download the assembly report to create a chromosome mapping file
+wget [https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_assembly_report.txt](https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_assembly_report.txt)
+
+# Create the mapping file (local_rename.txt) to convert NCBI names to UCSC 'chr' names
 grep -v "^#" GCF_000001405.40_GRCh38.p14_assembly_report.txt | \
 awk -F'\t' '$2 == "assembled-molecule" {print $7, $10}' > local_rename.txt
 
-# 5. Standardize dbSNP Chromosome Names
-bcftools annotate --rename-chrs local_rename.txt \
-    GCF_000001405.40.gz \
-    -Oz -o dbsnp_hg38_chr.vcf.gz
-
+# Rename chromosomes in the dbSNP VCF and index it
+bcftools annotate --rename-chrs local_rename.txt GCF_000001405.40.gz -Oz -o dbsnp_hg38_chr.vcf.gz
 bcftools index -t dbsnp_hg38_chr.vcf.gz
 
+# ==========================================
+# 2. SAMPLE VCF PROCESSING
+# ==========================================
 
-# --- PHASE 2: SAMPLE VCF CONVERSION & FORMATTING ---
-
-# 6. Convert PLINK binary files to VCF
+# Export PLINK binary files to VCF
 plink2 --bfile ../samples \
-    --fa hg38.fa.gz \
-    --chr 1-22, X, Y \
-    --set-all-var-ids '@:#' \
-    --new-id-max-allele-len 50 \
-    --export vcf bgz \
-    --out step1_raw
+  --fa hg38.fa.gz \
+  --chr 1-22, X, Y \
+  --set-all-var-ids '@:#' \
+  --new-id-max-allele-len 50 \
+  --export vcf bgz \
+  --out step1_raw
 
-# 7. Rename Sample Chromosomes to UCSC style (chr1, chr2...)
-bcftools annotate --rename-chrs local_rename.txt \
-    -Oz -o step2_chr.vcf.gz \
-    step1_raw.vcf.gz
+# Rename sample chromosomes to match UCSC 'chr' format
+bcftools annotate --rename-chrs local_rename.txt -Oz -o step2_chr.vcf.gz step1_raw.vcf.gz
+bcftools index -t step2_chr.vcf.gz
 
-# 8. Sort and Index the Sample VCF
+# Coordinate-sort the sample VCF
 bcftools sort step2_chr.vcf.gz -Oz -o step3_sorted.vcf.gz
 bcftools index -t step3_sorted.vcf.gz
 
+# ==========================================
+# 3. ANNOTATION & REFINEMENT
+# ==========================================
 
-# --- PHASE 3: ANNOTATION ---
+# Annotate with rsIDs from the standardized dbSNP file
+bcftools annotate -a dbsnp_hg38_chr.vcf.gz -c ID -Oz -o step4_annotated.vcf.gz step3_sorted.vcf.gz
 
-# 9. Annotate IDs from dbSNP
-bcftools annotate -a dbsnp_hg38_chr.vcf.gz \
-    -c ID \
-    -Oz -o step4_annotated.vcf.gz \
-    step3_sorted.vcf.gz
-
-# 10. Set custom ID format (rsID:REF:ALT)
-bcftools annotate --set-id '%ID:%REF:%ALT' \
-    -Oz -o final_confluence_hg38.vcf.gz \
-    step4_annotated.vcf.gz
-
+# Set custom IDs in the format 'rsID:REF:ALT'
+bcftools annotate --set-id '%ID:%REF:%ALT' -Oz -o final_confluence_hg38.vcf.gz step4_annotated.vcf.gz
 bcftools index -t final_confluence_hg38.vcf.gz
 
+# ==========================================
+# 4. GENE EXTRACTION (FGFR3)
+# ==========================================
 
-# --- PHASE 4: FGFR3 GENE EXTRACTION ---
+# Extract the FGFR3 region based on coordinates
+bcftools view -r chr4:1707662-1816636 -Oz -o FGFR3.sub.vcf.gz final_confluence_hg38.vcf.gz
 
-# 11. Extract FGFR3 Coordinates
-bcftools view -r chr4:1707662-1816636 \
-    -Oz -o FGFR3.sub.vcf.gz \
-    final_confluence_hg38.vcf.gz
-
-# 12. Normalize and De-duplicate Variants
-bcftools norm -d all \
-    -Oz -o FGFR3.unique.vcf.gz \
-    FGFR3.sub.vcf.gz
-
+# Normalize and remove duplicate variants
+bcftools norm -d all -Oz -o FGFR3.unique.vcf.gz FGFR3.sub.vcf.gz
 bcftools index -t FGFR3.unique.vcf.gz
 
-echo "Pipeline Complete. Final file: FGFR3.unique.vcf.gz"
+echo "Process Complete. Final output: FGFR3.unique.vcf.gz"
