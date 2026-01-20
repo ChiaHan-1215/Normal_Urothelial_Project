@@ -55,8 +55,12 @@ geno_df.tmp <- data.frame(lapply(geno_df.tmp, function(x){ gsub("\\/", " ", x)})
 
 
 
-# load the sample isofom count
+# load the sample TPM count
 iso <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/project_FGFR3/GTEx_v10_FGFR3_iso_TPM.txt')
+
+# load the sample isofom count
+# iso <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/project_FGFR3/FGFR3_iso.txt')
+
 iso <- t(iso) %>% as.data.frame()
 names(iso) <- iso[1,]
 iso <- iso[-c(1,2),]
@@ -75,42 +79,6 @@ mani_bladder_with_iso <- inner_join(iso,mani_bladder,by = 'Sample_ID')
 rownames(mani_bladder_with_iso) <- mani_bladder_with_iso$Sample_ID
 mani_bladder_with_iso <- mani_bladder_with_iso[,c(-12)]
 
-##########################################################################################
-
-# get TPM
-#tmp.i_tpm <- ls_tpm[[i]]
-#head(tmp.i_tpm[,1:10])
-#tmp.i_tpm <- tmp.i_tpm[ which(tmp.i_tpm$Name %in% tmp.i_tmm$Name), ]
-#tmp.i_tpm <- tmp.i_tpm %>% mutate(across(3:ncol(tmp.i_tpm), ~ as.numeric(as.character(.x))))
-
-mani_bl_stat <- t(mani_bladder_with_iso) %>% as.data.frame()
-mani_bl_stat <- mani_bl_stat[-1,]
-mani_bl_stat <- mani_bl_stat %>% mutate(GENEID=rownames(mani_bl_stat),.before = 1)
-mani_bl_stat <- mani_bl_stat %>% mutate(across(2:ncol(mani_bl_stat), ~ as.numeric(as.character(.x))))
-
-str(mani_bl_stat)
-
-tmp.i_tpm <- mani_bl_stat
-
-
-df_stats.tpm <- tmp.i_tpm %>%
-  rowwise() %>%
-  mutate(
-    # Specify the range of your actual data columns
-    min = min(c_across(2:ncol(tmp.i_tpm)), na.rm = TRUE),
-    max = max(c_across(2:ncol(tmp.i_tpm)), na.rm = TRUE),
-    mean = mean(c_across(2:ncol(tmp.i_tpm)), na.rm = TRUE),
-    median = median(c_across(2:ncol(tmp.i_tpm)), na.rm = TRUE),
-    sd = sd(c_across(2:ncol(tmp.i_tpm)), na.rm = TRUE)
-  ) %>%
-  ungroup() %>% 
-  select(min, max, mean, median, sd)
-
-# add gene ID, symbol, and method tag
-df_stats.tpm <- bind_cols(tmp.i_tpm[,1], df_stats.tpm)
-names(df_stats.tpm)[2:ncol(df_stats.tpm)] <- paste0(names(df_stats.tpm)[2:ncol(df_stats.tpm)], "_TPM")
-names(df_stats.tpm)[1] <- "FGFR3_isoform"
-
 #### Vln Box plot for isoform expression between baldder vs smooth muscle ####
 
 # datasets
@@ -118,6 +86,55 @@ mani_tot <- mani[,c(2,12,14)]
 names(mani_tot)[1] <- "Sample_ID"
 iso_p <- left_join(iso,mani_tot,by='Sample_ID')
 iso_p <- iso_p %>% select("Sample_ID","SMTS","SMTSD",, everything()) 
+
+############# Do summaryStat of ALL ###################
+
+
+# use for loop
+tissue <- iso_p$SMTS %>% unique() %>% sort()
+
+Summ <- data.frame()
+
+for (j in tissue){
+  # j <- "Bladder"
+  # j <- "Ovary"
+  
+  df1 <- iso_p %>% filter(SMTS == j)
+  df1 <- t(df1) %>% as.data.frame()
+  names(df1) <- df1[1,]
+  df1 <- df1[-c(1:3),]
+  df1 <- df1 %>% mutate(GENEID=rownames(df1),.before = 1)
+  df1 <- df1 %>% mutate(across(2:ncol(df1), ~ as.numeric(as.character(.x))))
+  
+  df_stats.tpm <- df1 %>%
+    rowwise() %>%
+    mutate(
+      # Specify the range of your actual data columns
+      min = min(c_across(2:ncol(df1)), na.rm = TRUE),
+      max = max(c_across(2:ncol(df1)), na.rm = TRUE),
+      mean = mean(c_across(2:ncol(df1)), na.rm = TRUE),
+      median = median(c_across(2:ncol(df1)), na.rm = TRUE),
+      sd = sd(c_across(2:ncol(df1)), na.rm = TRUE)
+    ) %>%
+    ungroup() %>% 
+    select(min, max, mean, median, sd)
+  
+  # add gene ID, symbol, and method tag
+  df_stats.tpm <- bind_cols(df1[,1], df_stats.tpm)
+  names(df_stats.tpm)[2:ncol(df_stats.tpm)] <- paste0(names(df_stats.tpm)[2:ncol(df_stats.tpm)], "_TPM")
+  names(df_stats.tpm)[1] <- "FGFR3_isoform"
+  df_stats.tpm <- df_stats.tpm %>% mutate(Tissue=j,.before = 1)
+  
+  Summ <- rbind(df_stats.tpm,Summ)
+  rm(df_stats.tpm)
+  rm(df1)
+  
+  
+}
+
+############# ############# ############# ############# 
+############# ############# ############# ############# 
+############# ############# ############# ############# 
 
 # Now plot for bladder and muscle
 iso_p_bm <- iso_p %>% filter(SMTS=="Bladder"|SMTS=="Muscle")
@@ -176,7 +193,7 @@ p_bladder <- iso_long2 %>%
   filter(SMTS == "Bladder") %>%
   ggplot(aes(x = isoform, y = log2(tpm+1))) +  # Changed x to isoform
   geom_boxplot(width = 0.2, linewidth = 0.2, colour = "black", 
-              fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
+               fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
   geom_jitter(width = 0.15, size = 0.1, alpha = 0.3, color = "grey30") +
   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
   # Removed facet_wrap
