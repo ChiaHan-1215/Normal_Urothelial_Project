@@ -19,46 +19,46 @@ tx2gene <- AnnotationDbi::select(
 
 names(tx2gene) <- c('transcript_id','gene_id','TXID')
 
-lff <- list.files('.',pattern = ".genes.results")
-# like SetName()
-names(lff) <- gsub(".genes.results", "", basename(lff))
-# check lff to see name match with quant.sf or not
-
-# output summary of isofrom TPM into gene TPM
-
-txi <- tximport(
-  lff,
-  type    = "rsem",
-  txIn = F,
-  txOut = F)
-
-expected_counts <- txi$counts
-
-# 1. Extract the unique Ensembl gene IDs you have
-gene_ids <- rownames(expected_counts)
-gene_ids <- gsub('\\.[0-9]+','',gene_ids)
-
-
-gene_map <- ensembldb::select(
-  edb,
-  keys    = gene_ids,
-  keytype = "GENEID",
-  columns = c("GENEID","GENENAME")
-)
-
-
-# 3. Turn that into a named vector for lookup
-symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
-
-expected_counts <- as.data.frame(expected_counts)
-rownames(expected_counts) <- gene_ids 
-
-expected_counts <- expected_counts %>% mutate(GENEID=rownames(expected_counts), .before = names(expected_counts)[1] )
-
-# Keep original Ensembl ID row names
-# Add gene symbols as a separate column
-expected_counts <- expected_counts %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(expected_counts)[1] )
-
+# lff <- list.files('.',pattern = ".genes.results")
+# # like SetName()
+# names(lff) <- gsub(".genes.results", "", basename(lff))
+# # check lff to see name match with quant.sf or not
+# 
+# # output summary of isofrom TPM into gene TPM
+# 
+# txi <- tximport(
+#   lff,
+#   type    = "rsem",
+#   txIn = F,
+#   txOut = F)
+# 
+# expected_counts <- txi$counts
+# 
+# # 1. Extract the unique Ensembl gene IDs you have
+# gene_ids <- rownames(expected_counts)
+# gene_ids <- gsub('\\.[0-9]+','',gene_ids)
+# 
+# 
+# gene_map <- ensembldb::select(
+#   edb,
+#   keys    = gene_ids,
+#   keytype = "GENEID",
+#   columns = c("GENEID","GENENAME")
+# )
+# 
+# 
+# # 3. Turn that into a named vector for lookup
+# symb <- setNames(gene_map$GENENAME, gene_map$GENEID)
+# 
+# expected_counts <- as.data.frame(expected_counts)
+# rownames(expected_counts) <- gene_ids 
+# 
+# expected_counts <- expected_counts %>% mutate(GENEID=rownames(expected_counts), .before = names(expected_counts)[1] )
+# 
+# # Keep original Ensembl ID row names
+# # Add gene symbols as a separate column
+# expected_counts <- expected_counts %>% mutate(GENESYMBOL=ifelse(is.na(symb[gene_ids]), gene_ids, symb[gene_ids]), .before = names(expected_counts)[1] )
+# 
 
 ##################################################################################################################
 ### The option below is for getting isofom raw count #############################################################
@@ -142,7 +142,7 @@ sample_cols <- setdiff(colnames(expected_counts), c("GENESYMBOL", "GENEID"))
 # counts matrix (keep as numeric/double; do NOT force integer for RSEM expected counts)
 cts <- as.matrix(expected_counts[, sample_cols])
 storage.mode(cts) <- "double"
-rownames(cts) <- expected_counts$GENESYMBOL
+rownames(cts) <- expected_counts$GENEID
 
 # optional filter like your old keep step
 keep <- rowSums(cts) >= 10
@@ -202,11 +202,12 @@ final_normalized <- as.data.frame(final_normalized)
 
 # add gene annotation back (NO hard-coded 349/348)
 final_normalized$GENEID <- rownames(final_normalized)
+
 final_normalized$GENESYMBOL <- expected_counts$GENESYMBOL[match(final_normalized$GENEID,
-                                                                 expected_counts$GENEID)]
+                                                                expected_counts$GENEID)]
 # order columns: gene info first, then samples
 final_normalized <- final_normalized[, c("GENESYMBOL", "GENEID", colnames(cts))]
-final_normalized <- final_normalized[,c(-1,-3)]
+final_normalized <- final_normalized[,c(-2,-3)]
 # rename to fit the sctipt 
 qnorm.DeseqNC.set <- final_normalized
 #write.table('')
@@ -220,7 +221,7 @@ library(biomaRt)
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
-vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/vcf_files/FGFR3_sub_NU_sample.vcf.gz"
+vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/original_bim_bed_fam/ref_stuff/FGFR3.unique.vcf.gz"
 vcf.file.tmp <- read.vcfR(vcf_path)
 
 fix_df <- as.data.frame(getFIX(vcf.file.tmp))
@@ -238,100 +239,104 @@ geno_with_pos <- cbind(
   as.data.frame(vcf_genotypes.tmp, check.names = FALSE)
 )
 
-# ==============================================================================
-# 2) BIOMART QUERY (hg38)
-# ==============================================================================
-query_chr <- gsub("chr", "", geno_with_pos$CHR, ignore.case = TRUE)
-coords <- paste(query_chr, geno_with_pos$POS, geno_with_pos$POS, sep = ":")
+# # ==============================================================================
+# # 2) BIOMART QUERY (hg38)
+# # ==============================================================================
+# query_chr <- gsub("chr", "", geno_with_pos$CHR, ignore.case = TRUE)
+# coords <- paste(query_chr, geno_with_pos$POS, geno_with_pos$POS, sep = ":")
+# 
+# snpMart <- useEnsembl(biomart = "snp", dataset = "hsapiens_snp")
+# 
+# snp_results_raw <- getBM(
+#   attributes = c('refsnp_id', 'chrom_start', 'allele'),
+#   filters = 'chromosomal_region', 
+#   values = coords, 
+#   mart = snpMart
+# )
+# 
+# # Filter for exact coordinate matches
+# snp_results <- snp_results_raw[snp_results_raw$chrom_start %in% geno_with_pos$POS, ]
+# 
+# # ==============================================================================
+# # 3) MERGE AND STRAND DETECTION
+# # ==============================================================================
+# final_data <- merge(
+#   geno_with_pos, 
+#   snp_results, 
+#   by.x = "POS", 
+#   by.y = "chrom_start",
+#   all.x = TRUE
+# )
+# 
+# # Function to get the complement (A <-> T, C <-> G)
+# complement_seq <- function(sequence) {
+#   # Handles single bases or strings like "A/C"
+#   chartr("ATCG", "TAGC", sequence)
+# }
+# 
+# # Identify Strand Status
+# final_data$Strand_Status <- sapply(1:nrow(final_data), function(i) {
+#   vcf_ref <- final_data$REF[i]
+#   ens_alleles <- final_data$allele[i]
+#   if (is.na(ens_alleles)) return("Unknown")
+#   
+#   if (grepl(vcf_ref, ens_alleles)) {
+#     return("Forward")
+#   } else if (grepl(complement_seq(vcf_ref), ens_alleles)) {
+#     return("Reverse/Flipped")
+#   } else {
+#     return("Mismatch")
+#   }
+# })
+# 
+# # ==============================================================================
+# # 4) AUTOMATIC GENOTYPE UNF-FLIPPING (The Fix)
+# # ==============================================================================
+# # This section iterates through all sample columns and complements the alleles
+# # ONLY if the Strand_Status is "Reverse/Flipped".
+# 
+# sample_names <- colnames(vcf_genotypes.tmp)
+# 
+# for (sample in sample_names) {
+#   # Apply complement only where flipped
+#   # sample <- sample_names[2]
+#   final_data[[sample]] <- ifelse(
+#     final_data$Strand_Status == "Reverse/Flipped",
+#     complement_seq(final_data[[sample]]), 
+#     final_data[[sample]]
+#   )
+# }
+# 
+# # ==============================================================================
+# # 5) FINAL CLEANUP AND EXPORT
+# # ==============================================================================
+# # Update IDs to official rsIDs
+# final_data$Clean_SNP_ID <- ifelse(
+#   !is.na(final_data$refsnp_id), final_data$refsnp_id, final_data$SNP_ID
+# )
+# 
+# # Rename Ensembl column
+# colnames(final_data)[colnames(final_data) == "allele"] <- "Ensembl_Alleles_Plus_Strand"
+# 
+# # Organize columns: Metadata first, then Samples
+# info_cols <- c("CHR", "POS","SNP_ID","Clean_SNP_ID", "REF", "ALT", 
+#                "Ensembl_Alleles_Plus_Strand", "Strand_Status")
+# final_data <- final_data[, c(info_cols, sample_names)]
+# 
+# 
+# 
 
-snpMart <- useEnsembl(biomart = "snp", dataset = "hsapiens_snp")
-
-snp_results_raw <- getBM(
-  attributes = c('refsnp_id', 'chrom_start', 'allele'),
-  filters = 'chromosomal_region', 
-  values = coords, 
-  mart = snpMart
-)
-
-# Filter for exact coordinate matches
-snp_results <- snp_results_raw[snp_results_raw$chrom_start %in% geno_with_pos$POS, ]
-
-# ==============================================================================
-# 3) MERGE AND STRAND DETECTION
-# ==============================================================================
-final_data <- merge(
-  geno_with_pos, 
-  snp_results, 
-  by.x = "POS", 
-  by.y = "chrom_start",
-  all.x = TRUE
-)
-
-# Function to get the complement (A <-> T, C <-> G)
-complement_seq <- function(sequence) {
-  # Handles single bases or strings like "A/C"
-  chartr("ATCG", "TAGC", sequence)
-}
-
-# Identify Strand Status
-final_data$Strand_Status <- sapply(1:nrow(final_data), function(i) {
-  vcf_ref <- final_data$REF[i]
-  ens_alleles <- final_data$allele[i]
-  if (is.na(ens_alleles)) return("Unknown")
-  
-  if (grepl(vcf_ref, ens_alleles)) {
-    return("Forward")
-  } else if (grepl(complement_seq(vcf_ref), ens_alleles)) {
-    return("Reverse/Flipped")
-  } else {
-    return("Mismatch")
-  }
-})
-
-# ==============================================================================
-# 4) AUTOMATIC GENOTYPE UNF-FLIPPING (The Fix)
-# ==============================================================================
-# This section iterates through all sample columns and complements the alleles
-# ONLY if the Strand_Status is "Reverse/Flipped".
-
-sample_names <- colnames(vcf_genotypes.tmp)
-
-for (sample in sample_names) {
-  # Apply complement only where flipped
-  # sample <- sample_names[2]
-  final_data[[sample]] <- ifelse(
-    final_data$Strand_Status == "Reverse/Flipped",
-    complement_seq(final_data[[sample]]), 
-    final_data[[sample]]
-  )
-}
-
-# ==============================================================================
-# 5) FINAL CLEANUP AND EXPORT
-# ==============================================================================
-# Update IDs to official rsIDs
-final_data$Clean_SNP_ID <- ifelse(
-  !is.na(final_data$refsnp_id), final_data$refsnp_id, final_data$SNP_ID
-)
-
-# Rename Ensembl column
-colnames(final_data)[colnames(final_data) == "allele"] <- "Ensembl_Alleles_Plus_Strand"
-
-# Organize columns: Metadata first, then Samples
-info_cols <- c("CHR", "POS","SNP_ID","Clean_SNP_ID", "REF", "ALT", 
-               "Ensembl_Alleles_Plus_Strand", "Strand_Status")
-final_data <- final_data[, c(info_cols, sample_names)]
-
+# modified the sample name 
+final_data <- geno_with_pos
 # Keep the final data that both REF and ALT are not NA
 final_data <- final_data %>%
   dplyr::filter(!is.na(REF) & !is.na(ALT))
 
-
-# modified the sample name 
-
-
 colnames(qnorm.DeseqNC.set)
-colnames(final_data)
+# Apply to specific columns (7 to end)
+colnames(final_data)[6:ncol(final_data)] <- sub("^(.+)_\\1$", "\\1", colnames(final_data)[6:ncol(final_data)])
+
+
 
 # load sample manifest 
 gt_sample_man <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/SR0325-017_1_QC_Report_48202503941.xlsx')
@@ -343,7 +348,7 @@ gt_sample_man$Sample_Name <- gsub("_DNA","",gt_sample_man$Sample_Name)
 
 guide <- setNames(gt_sample_man$Sample_Name,gt_sample_man$Sample_ID)
 
-old_names <- colnames(final_data)[9:ncol(final_data)]
+old_names <- colnames(final_data)[6:ncol(final_data)]
 
 # Replace only where a match exists in guide
 new_names <- ifelse(
@@ -352,22 +357,24 @@ new_names <- ifelse(
   old_names
 )
 
-colnames(final_data)[9:ncol(final_data)] <- new_names
+colnames(final_data)[6:ncol(final_data)] <- new_names
 
 
 # Now is to transfrom the data 
 
 # Extract FGFR3 
 
-FGFR3_qn <- qnorm.DeseqNC.set %>% dplyr::filter(GENEID == "FGFR3")
+FGFR3_qn <- qnorm.DeseqNC.set %>% dplyr::filter(GENESYMBOL == "FGFR3")
 FGFR3_qn <- t(FGFR3_qn) %>% as.data.frame()
 FGFR3_qn$Sample_Name <- rownames(FGFR3_qn)
 FGFR3_qn <- FGFR3_qn[-1,]
-FGFR3_qn <- FGFR3_qn[,c(2,1)]
+FGFR3_qn <- FGFR3_qn[,c(9,1:8)]
 
+
+final_data_sub <- final_data
 # Test it use rsid only 
-final_data_sub <- final_data[grep("rs",final_data$SNP_ID),]
-final_data_sub <- final_data_sub[,c(4,9:128)]
+#final_data_sub <- final_data[grep("rs",final_data$SNP_ID),]
+final_data_sub <- final_data_sub[,c(3,6:125)]
 final_data_sub <- t(final_data_sub) %>% as.data.frame()
 names(final_data_sub) <- final_data_sub[1,]
 final_data_sub <- final_data_sub[-1,]
@@ -385,7 +392,7 @@ gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,A
 final_FGFR3 <- left_join(gt_sample_man_sub,FGFR3_Merged_data,by = 'Sample_Name')
 
 # Done save 
-# write.table(final_FGFR3,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/FGFR3_qn.snp.Test.csv',row.names = F,quote = F,sep = ',')
+# write.table(final_FGFR3,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/FGFR3_isoform_TMM_INT.snp.csv',row.names = F,quote = F,sep = ',')
 
 
 ###########################################################
@@ -404,6 +411,11 @@ library(lmPerm)
 
 df_fgfr <- final_FGFR3
 
+names(df_fgfr) <- sub("(:[^:]+){2}$", "", names(df_fgfr))
+names(df_fgfr)[grep("^4",names(df_fgfr))] <-  paste0('chr',"",names(df_fgfr)[grep("^4",names(df_fgfr))])
+names(df_fgfr)[grep("^chr4",names(df_fgfr))] <- gsub(":","_",names(df_fgfr)[grep("^chr4",names(df_fgfr))])
+
+
 df_fgfr <- df_fgfr %>% 
   filter(!is.na(Predicted_Sex) & Predicted_Sex != "") %>%
   filter(!is.na(Ancestry) & Ancestry != "") 
@@ -414,11 +426,13 @@ df_fgfr <- df_fgfr %>%
 df_fgfr$Predicted_Sex <- as.factor(df_fgfr$Predicted_Sex)
 df_fgfr$Ancestry <-as.factor(df_fgfr$Ancestry)
 
+
 #### Make SNP as 0,1,2 
 
 # Iterate through SNP columns
-for (i in names(df_fgfr)[5:26]) {
+for (i in names(df_fgfr)[12:79]) {
   
+  #i <- "4:1763224:G:C"
   n1 <- paste0(i, "_add")
   
   # 1. Create frequency table and ensure it's a clean data frame
@@ -462,7 +476,7 @@ for (i in names(df_fgfr)[5:26]) {
 }
 
 
-df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:4],setdiff(names(df_fgfr),names(df_fgfr)[1:4]) %>% sort())]
+df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:11],setdiff(names(df_fgfr),names(df_fgfr)[1:11]) %>% sort())]
 
 #############################
 
@@ -497,7 +511,7 @@ df_count.summary <- data.frame()
 
 
 for (i in grep("_add",names(inputdf),value = T)){
-  # i <- "rs11248073_add"
+  # i <- "4:1768718_add"
   # i <- "rs111457485_add" 
   # i <- "rs16997913_add"
   
@@ -537,7 +551,7 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   # names(inputdf[6:135]
   
-  for(j in names(inputdf[4])){
+  for(j in names(inputdf[4:11])){
     
     # j <- "FGFR3"
     # j <- names(inputdf[8:16])[1]
@@ -572,7 +586,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     ######### make 0 as 1, not sure we need here #########
     # filtered_0_1_2_only <- filtered_0_1_2_only %>% mutate(!!i := ifelse(.[[i]] == 0, 1, .[[i]]))
     ######################################################
-  
+    
     # fit lm model
     fit_un <- lm(fmla_un, filtered_0_1_2_only)
     fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
@@ -590,7 +604,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     
     # use this since the lm() is done based on the sample inculde GT
     non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
-
+    
     #non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
     
     # Calculate mean values for SNP dosages 1 and 2
@@ -838,6 +852,5 @@ for (i in gene){
 
 combined_plot <- plots[["LINC01426"]] + plots[["LINC01426_ENST00000420877.1"]] +  plots[["LINC01426__rs5"]] + plots[["LINC01426_ENST00000420877.1__rs5"]] + plot_layout(ncol = 4)
 print(combined_plot)
-
 
 
