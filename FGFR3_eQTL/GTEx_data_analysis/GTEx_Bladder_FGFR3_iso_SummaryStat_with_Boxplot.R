@@ -176,9 +176,9 @@ iso_long2 <- iso_long %>%
 p_muscle <- iso_long2 %>%
   filter(SMTS == "Muscle") %>%
   ggplot(aes(x = isoform, y = log2(tpm+1))) +  # Changed x to isoform
-  geom_boxplot(width = 0.2, linewidth = 0.2, colour = "black", 
+  geom_boxplot(width = 0.4, linewidth = 0.5, colour = "black", 
                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
-  geom_jitter(width = 0.15, size = 0.1, alpha = 0.3, color = "grey30") +
+  geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
   # Removed facet_wrap
   theme_classic() +
@@ -192,9 +192,9 @@ p_muscle <- iso_long2 %>%
 p_bladder <- iso_long2 %>%
   filter(SMTS == "Bladder") %>%
   ggplot(aes(x = isoform, y = log2(tpm+1))) +  # Changed x to isoform
-  geom_boxplot(width = 0.2, linewidth = 0.2, colour = "black", 
+  geom_boxplot(width = 0.4, linewidth = 0.5, colour = "black", 
                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
-  geom_jitter(width = 0.15, size = 0.1, alpha = 0.3, color = "grey30") +
+  geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
   # Removed facet_wrap
   theme_classic() +
