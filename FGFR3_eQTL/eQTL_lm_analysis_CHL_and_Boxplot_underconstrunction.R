@@ -221,7 +221,7 @@ library(biomaRt)
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
-vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/original_bim_bed_fam/ref_stuff/FGFR3.unique.vcf.gz"
+vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.unique.vcf.gz"
 vcf.file.tmp <- read.vcfR(vcf_path)
 
 fix_df <- as.data.frame(getFIX(vcf.file.tmp))
@@ -339,8 +339,7 @@ colnames(final_data)[6:ncol(final_data)] <- sub("^(.+)_\\1$", "\\1", colnames(fi
 
 
 # load sample manifest 
-gt_sample_man <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/SR0325-017_1_QC_Report_48202503941.xlsx')
-
+gt_sample_man <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Sample_Genotyping/SR0325-017_1_QC_Report_48202503941.xlsx')
 gt_sample_man$Sample_Name <- gsub(" ","_",gt_sample_man$Sample_Name)
 gt_sample_man$Sample_Name <- gsub("_DNA","",gt_sample_man$Sample_Name)
 
@@ -404,10 +403,6 @@ detach("package:ensembldb", unload = TRUE)
 library(dplyr)
 library(qvalue)
 library(lmPerm)
-
-
-
-# df_fgfr <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/FGFR3_qn.snp.Test.csv')
 
 df_fgfr <- final_FGFR3
 
