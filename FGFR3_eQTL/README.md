@@ -1,4 +1,12 @@
-### Date: 01142025
+
+### Date:01212026
+
+- Created a folder for Normal_Urothelial_Project in T-drive for easy negavation
+- add the README
+
+
+
+### Date: 01142026
 
 - For FGFR3, mark wuch isofom is main one and which is skipping exons
 
