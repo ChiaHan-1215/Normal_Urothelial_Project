@@ -487,6 +487,12 @@ for (i in grep("_add",names(inputdf),value = T)){
 }
 
 
+
+
+
+##### CUT OF 
+
+
 # PLOT 
 
 blca_T_long_s <- BLCA_T_fgfr_sex %>%
@@ -531,10 +537,7 @@ blca_N_long_s %>%
         axis.text.y = element_text(color = "black", size = 10),
         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
         legend.position = "top")
-
-
-
-##### CUT OF 
+                                 
 
 # 
 # # cahnge order of rs111457485
