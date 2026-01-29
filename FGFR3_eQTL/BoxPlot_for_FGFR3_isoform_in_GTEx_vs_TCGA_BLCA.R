@@ -80,6 +80,7 @@ p_blca_Tumor <- blca_T_long %>%
                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
   geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
+
   # Removed facet_wrap
   theme_classic() +
   theme(axis.title = element_blank(),
@@ -95,6 +96,7 @@ p_blca_Normal <- blca_N_long %>%
                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
   geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
+  
   # Removed facet_wrap
   theme_classic() +
   theme(axis.title = element_blank(),
@@ -156,7 +158,7 @@ blca_N_long_s <- BLCA_N_fgfr_sex %>%
 
 
 ####**************************************************************************************
-  
+
 # choose isoforms of interest
 keep_isoforms <- c(
   "ENST00000340107.8",
@@ -194,6 +196,13 @@ t_normal <- blca_N_long_s_filt %>%
                size = 2, 
                color = "#FF0000",
                position = position_dodge(width = 0.8)) + # 4. Align red dots
+  
+  stat_compare_means(method = "t.test", 
+                     label = "p.format") +
+  
+  
+  
+  
   scale_fill_manual(values = c("MALE" = "#A8D5E2", "FEMALE" = "#F2BAC9"),labels = c("M,n=10", "F,n=9")) +
   theme_classic() +
   theme(axis.title = element_blank(),
@@ -223,6 +232,11 @@ t_Tumor <- blca_T_long_s_filt %>%
                size = 2, 
                color = "#FF0000",
                position = position_dodge(width = 0.8)) + # 4. Align red dots
+  
+  stat_compare_means(method = "t.test", 
+                     label = "p.format") +
+  
+  
   scale_fill_manual(values = c("MALE" = "#A8D5E2", "FEMALE" = "#F2BAC9"),labels = c("M,n=301", "F,n=106")) +
   theme_classic() +
   theme(axis.title = element_blank(),
@@ -368,6 +382,7 @@ iso_long2_filt <- iso_long2 %>%
 
 #******
 
+library(ggpubr)
 
 g1 <- iso_long2_filt %>%
   ggplot(aes(x = isoform, y = log2(tpm + 1), fill = factor(SEX))) +  # 1. Added fill here
@@ -376,18 +391,25 @@ g1 <- iso_long2_filt %>%
                colour = "black", 
                alpha = 0.6, 
                outlier.shape = NA,
-               position = position_dodge(width = 0.8)) + # 2. Optional: adjust spacing
-  geom_jitter(aes(group = factor(SEX)),                  # 3. Group dots by sex
+               position = position_dodge(width = 0.8)) + 
+  geom_jitter(aes(group = factor(SEX)),                  
               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8), 
               size = 0.1, 
               alpha = 0.3, 
               color = "grey30") +
-  stat_summary(fun = median, 
+  
+  stat_summary(
+               fun = median, 
                geom = "point", 
                shape = 20, 
                size = 2, 
                color = "#FF0000",
-               position = position_dodge(width = 0.8)) + # 4. Align red dots
+               position = position_dodge(width = 0.8)) +
+  
+  stat_compare_means(method = "t.test", 
+                     label = "p.format") +
+
+  
   scale_fill_manual(values = c("1" = "#A8D5E2", "2" = "#F2BAC9"), 
                     labels = c("M,n=48", "F,n=29"),
                     name = "gender") +
@@ -395,7 +417,10 @@ g1 <- iso_long2_filt %>%
   theme(axis.title = element_blank(),
         axis.text.y = element_text(color = "black", size = 10),
         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-        legend.position = "right")+ ylim(c(-0.2,10.5)) + ggtitle("GTEx")
+        legend.position = "right")+ ylim(c(-0.2,10.5)) + ggtitle("GTEx") 
+  
+
+
 
 
 
@@ -405,5 +430,15 @@ t_normal|t_Tumor
 g1|t_normal
 g1|t_Tumor
 
+## check from dataset 
+# Creates a table of p-values for every isoform
+check_stats <- iso_long2_filt %>%
+  group_by(isoform) %>%
+  summarise(
+    t_test_p = t.test(log2(tpm + 1) ~ SEX)$p.value,
+    wilcox_p = wilcox.test(tpm ~ SEX)$p.value
+  )
+
+print(check_stats)
 
 
