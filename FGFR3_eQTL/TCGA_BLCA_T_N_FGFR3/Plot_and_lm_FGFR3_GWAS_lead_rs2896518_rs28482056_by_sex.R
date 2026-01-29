@@ -308,7 +308,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     # names(inputdf[6:135]
     
     # remove SNPs that are NA and empty
-    df.tmp <- inputdf[,c(names(inputdf[5:7]), gsub("_add", "", i))] %>%
+    df.tmp <- inputdf[,c(names(inputdf[7:9]), gsub("_add", "", i))] %>%
       filter(!is.na(inputdf[[gsub("_add", "", i)]]) & inputdf[[gsub("_add", "", i)]] != ""  ) %>%
       group_by(get(noquote(gsub("_add", "", i)))) %>%
       dplyr::summarise(across(where(is.numeric), get(k), na.rm=TRUE)) %>%
@@ -332,7 +332,7 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   # names(inputdf[6:135]
   
-  for(j in names(inputdf[5:7])){
+  for(j in names(inputdf[7:9])){
     
     # j <- "FGFR3"
     # j <- names(inputdf[8:16])[1]
