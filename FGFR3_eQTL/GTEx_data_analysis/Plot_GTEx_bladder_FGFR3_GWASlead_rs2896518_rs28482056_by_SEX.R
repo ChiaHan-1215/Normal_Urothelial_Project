@@ -109,7 +109,7 @@ Mg_data <- Mg_data %>%
 # SELECT GWAS MERKER FIRST TO TEST
 
 # Use portion as test, but can be whole dataset after 
-Mg_data_s <- Mg_data[,c(1:15,grep('rs2896518',names(Mg_data)))]
+Mg_data_s <- Mg_data[,c(1:15,grep('rs2896518|rs28482056',names(Mg_data)))]
 
 # Now add 0,1,2 to the GT 
 
@@ -168,7 +168,7 @@ for (i in grep('rs',names(Mg_data_s),value = T)) {
 
 GTEx_keep_isoforms <- c('ENST00000340107.8','ENST00000481110.7','ENST00000352904.6')
 
-Mg_data_s <- Mg_data_s %>% select(GTEx_ID,SEX,AGE,RACE,rs2896518,rs2896518_add,all_of(GTEx_keep_isoforms))
+Mg_data_s <- Mg_data_s %>% select(GTEx_ID,SEX,AGE,RACE,rs2896518,rs2896518_add,rs28482056,rs28482056_add,all_of(GTEx_keep_isoforms))
 
 
 ################################################################################################
@@ -202,7 +202,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     # names(inputdf[6:135]
     
     # remove SNPs that are NA and empty
-    df.tmp <- inputdf[,c(names(inputdf[5:7]), gsub("_add", "", i))] %>%
+    df.tmp <- inputdf[,c(names(inputdf[9:11]), gsub("_add", "", i))] %>%
       filter(!is.na(inputdf[[gsub("_add", "", i)]]) & inputdf[[gsub("_add", "", i)]] != ""  ) %>%
       group_by(get(noquote(gsub("_add", "", i)))) %>%
       dplyr::summarise(across(where(is.numeric), get(k), na.rm=TRUE)) %>%
@@ -226,7 +226,7 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   # names(inputdf[6:135]
   
-  for(j in names(inputdf[7:9])){
+  for(j in names(inputdf[9:11])){
     
     # j <- "FGFR3"
     # j <- names(inputdf[8:16])[1]
@@ -309,7 +309,9 @@ for (i in grep("_add",names(inputdf),value = T)){
       #mean_value_0_and_1=mean_value_1,
       #mean_value_2=mean_value_2,
       
+      model = paste0(formula(fmla_un)[2],"~",formula(fmla_un)[3]),
       
+      model_adjust = paste0(formula(fmla_adj)[2],"~",formula(fmla_adj)[3]),
       
       # add lm() result
       p.value = tryCatch({coef(summary(fit_un))[2,4]}, error=function(e){
@@ -359,9 +361,14 @@ GTEx_GT_iso <- Mg_data_s %>%
     values_to = "tpm"
   )
 
+#rs28482056 
+#rs2896518
+snp_plot <- "rs2896518"
+snp_plot <- "rs28482056"
 
-p_GTEx_sex_gt <- GTEx_GT_iso %>%
-  ggplot(aes(x = rs2896518, y = log2(tpm + 1), fill = gender)) +
+p_GTEx_sex_gt <- GTEx_GT_iso %>% filter(!is.na(.data[[snp_plot]]), .data[[snp_plot]] != "") %>%
+  ggplot(aes(x =.data[[snp_plot]], y = log2(tpm + 1), fill = gender)) +
+  
   geom_boxplot(
     width = 0.4, linewidth = 0.5, colour = "black",
     alpha = 0.6, outlier.shape = NA,
@@ -385,7 +392,7 @@ p_GTEx_sex_gt <- GTEx_GT_iso %>%
     axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
     legend.position = "right"
   ) +
-  ggtitle("GTEx normal bladder: rs2896518 genotype vs FGFR3 isoform expression")
+  ggtitle(paste0("GTEx:",snp_plot, " genotype vs FGFR3 isoform expression"))
 
 
 p_GTEx_sex_gt
