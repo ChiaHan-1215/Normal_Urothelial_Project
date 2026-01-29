@@ -56,21 +56,29 @@ BLCA_T_fgfr <- BLCA_T_fgfr %>% mutate(PID=rownames(BLCA_T_fgfr),.before = 1)
 BLCA_T_fgfr$total_FGFR3 <- rowSums(BLCA_T_fgfr[,c(2:11)])
 BLCA_T_fgfr$PID <- gsub('\\.','-',BLCA_T_fgfr$PID)
 
-
-
-
 GT_data1 <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/TCGA_data/Data_for_mapBC_project/mapBC_genotypes_TCGA_BLCA_72markers.csv')
-GT_data2 <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/TCGA_data/Data_for_mapBC_project/mapBC_genotypes_rs2236786_TCGA_BLCA_Tumor_Blood.csv')
+# rs28482056
+GT_data2 <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/TCGA_data/Data_for_FGFR3_project/genotypes/TCGA.BLCA_mapBC_chr4_rs2896518.csv')
+GT_data_sub <- GT_data2 %>% filter(rsID=='rs28482056')
+GT_data_sub <- GT_data_sub %>% select(rsID,names(GT_data_sub)%>% grep("TCGA",.,value = T))
+GT_data_sub <- t(GT_data_sub) %>% as.data.frame()
+
+names(GT_data_sub)<- GT_data_sub[1,]
+GT_data_sub <- GT_data_sub %>% mutate(PID=rownames(GT_data_sub),.before =1)
+GT_data_sub <- GT_data_sub[-1,]
+GT_data_sub$PID <- gsub("\\.","-",GT_data_sub$PID)
+GT_data_sub$rs28482056 <- gsub(" ","/",GT_data_sub$rs28482056)
 
 # GWAS lead rs2896518
 GT_data1 <- GT_data1[,c("ID_person","rs2896518")]
 names(GT_data1)[1] <- "PID"
 
 
+GT_data_Merge <- left_join(GT_data1,GT_data_sub,by="PID")
 
 # merge data
-BLCA_N_fgfr <- left_join(BLCA_N_fgfr,GT_data,by="PID")
-BLCA_T_fgfr <- left_join(BLCA_T_fgfr,GT_data,by="PID")
+BLCA_N_fgfr <- left_join(BLCA_N_fgfr,GT_data_Merge,by="PID")
+BLCA_T_fgfr <- left_join(BLCA_T_fgfr,GT_data_Merge,by="PID")
 
 
 # add 0,1,2
@@ -138,8 +146,8 @@ BLCA_N_fgfr_GT <- add_01_GT(inputdata =BLCA_N_fgfr )
 BLCA_T_fgfr_GT <- add_01_GT(inputdata =BLCA_T_fgfr )
 
 
-BLCA_N_fgfr_GT <- BLCA_N_fgfr_GT[,c(1,13,14,2:11)]
-BLCA_T_fgfr_GT <- BLCA_T_fgfr_GT[,c(1,13,14,2:11)]
+BLCA_N_fgfr_GT <- BLCA_N_fgfr_GT[,c(1,13:16,2:11)]
+BLCA_T_fgfr_GT <- BLCA_T_fgfr_GT[,c(1,13:16,2:11)]
 
 
 
@@ -213,10 +221,10 @@ BLCA_N_fgfr_GT
 
 
 BLCA_T_fgfr_sex <- left_join(BLCA_T_fgfr_GT,TCGA_sex,by="PID")
-BLCA_T_fgfr_sex <- BLCA_T_fgfr_sex[,c(1,14,2:13)]
+BLCA_T_fgfr_sex <- BLCA_T_fgfr_sex[,c(1,16,2:15)]
 
 BLCA_N_fgfr_sex <- left_join(BLCA_N_fgfr_GT,TCGA_sex,by="PID")
-BLCA_N_fgfr_sex <- BLCA_N_fgfr_sex[,c(1,14,2:13)]
+BLCA_N_fgfr_sex <- BLCA_N_fgfr_sex[,c(1,16,2:15)]
 
 BLCA_T_fgfr_sex$gender <- factor(BLCA_T_fgfr_sex$gender,levels = c("MALE","FEMALE"))
 BLCA_N_fgfr_sex$gender <- factor(BLCA_N_fgfr_sex$gender,levels = c("MALE","FEMALE"))
@@ -228,8 +236,8 @@ keep_isoforms <- c(
   "ENST00000352904.5"
 )
 
-blca_N_filt <- BLCA_N_fgfr_sex %>% select(names(BLCA_N_fgfr_sex)[1:4],all_of(keep_isoforms))
-blca_T_filt <- BLCA_T_fgfr_sex %>% select(names(BLCA_T_fgfr_sex)[1:4],all_of(keep_isoforms))
+blca_N_filt <- BLCA_N_fgfr_sex %>% select(names(BLCA_N_fgfr_sex)[1:6],all_of(keep_isoforms))
+blca_T_filt <- BLCA_T_fgfr_sex %>% select(names(BLCA_T_fgfr_sex)[1:6],all_of(keep_isoforms))
 
 
 
@@ -243,7 +251,8 @@ blca_N_long <- blca_N_filt %>%
   ) %>%
   mutate(
     gender = factor(gender, levels = c("MALE","FEMALE")),
-    rs2896518 = factor(rs2896518)  # A/G, G/G, etc.
+    rs2896518 = factor(rs2896518),
+    rs28482056 = factor(rs28482056)
   )
 
 
@@ -255,7 +264,8 @@ blca_T_long <- blca_T_filt %>%
   ) %>%
   mutate(
     gender = factor(gender, levels = c("MALE","FEMALE")),
-    rs2896518 = factor(rs2896518)  # A/G, G/G, etc.
+    rs2896518 = factor(rs2896518),
+    rs28482056 = factor(rs28482056)
   )
 
 
@@ -331,9 +341,9 @@ df.out <- data.frame()
 df_count.summary <- data.frame()
 
 for (i in grep("_add",names(inputdf),value = T)){
-
+  
   # i <- "rs2896518_add"
-
+  
   
   
   function.names <- c("max", "min", "mean", "median", "sd")
@@ -490,54 +500,54 @@ for (i in grep("_add",names(inputdf),value = T)){
 
 
 
-##### CUT OF 
+############################## CUT OF ###################################
 
+# 
+# # PLOT 
+# 
+# blca_T_long_s <- BLCA_T_fgfr_sex %>%
+#   pivot_longer(
+#     cols = -c(PID,total_FGFR3,gender),
+#     names_to = "isoform",
+#     values_to = "tpm"
+#   )
+# 
+# 
+# blca_N_long_s <- BLCA_N_fgfr_sex %>%
+#   pivot_longer(
+#     cols = -c(PID,total_FGFR3,gender),
+#     names_to = "isoform",
+#     values_to = "tpm"
+#   )
+# 
+# 
+# 
+# blca_N_long_s %>%
+#   ggplot(aes(x = isoform, y = log2(tpm + 1), fill = gender)) +  # 1. Added fill here
+#   geom_boxplot(width = 0.6, 
+#                linewidth = 0.5, 
+#                colour = "black", 
+#                alpha = 0.6, 
+#                outlier.shape = NA,
+#                position = position_dodge(width = 0.8)) + # 2. Optional: adjust spacing
+#   geom_jitter(aes(group = gender),                  # 3. Group dots by sex
+#               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8), 
+#               size = 0.1, 
+#               alpha = 0.3, 
+#               color = "grey30") +
+#   stat_summary(fun = median, 
+#                geom = "point", 
+#                shape = 20, 
+#                size = 2, 
+#                color = "#FF0000",
+#                position = position_dodge(width = 0.8)) + # 4. Align red dots
+#   scale_fill_manual(values = c("MALE" = "#A8D5E2", "FEMALE" = "#F2BAC9")) +
+#   theme_classic() +
+#   theme(axis.title = element_blank(),
+#         axis.text.y = element_text(color = "black", size = 10),
+#         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
+#         legend.position = "top")
 
-# PLOT 
-
-blca_T_long_s <- BLCA_T_fgfr_sex %>%
-  pivot_longer(
-    cols = -c(PID,total_FGFR3,gender),
-    names_to = "isoform",
-    values_to = "tpm"
-  )
-
-
-blca_N_long_s <- BLCA_N_fgfr_sex %>%
-  pivot_longer(
-    cols = -c(PID,total_FGFR3,gender),
-    names_to = "isoform",
-    values_to = "tpm"
-  )
-
-
-
-blca_N_long_s %>%
-  ggplot(aes(x = isoform, y = log2(tpm + 1), fill = gender)) +  # 1. Added fill here
-  geom_boxplot(width = 0.6, 
-               linewidth = 0.5, 
-               colour = "black", 
-               alpha = 0.6, 
-               outlier.shape = NA,
-               position = position_dodge(width = 0.8)) + # 2. Optional: adjust spacing
-  geom_jitter(aes(group = gender),                  # 3. Group dots by sex
-              position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8), 
-              size = 0.1, 
-              alpha = 0.3, 
-              color = "grey30") +
-  stat_summary(fun = median, 
-               geom = "point", 
-               shape = 20, 
-               size = 2, 
-               color = "#FF0000",
-               position = position_dodge(width = 0.8)) + # 4. Align red dots
-  scale_fill_manual(values = c("MALE" = "#A8D5E2", "FEMALE" = "#F2BAC9")) +
-  theme_classic() +
-  theme(axis.title = element_blank(),
-        axis.text.y = element_text(color = "black", size = 10),
-        axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-        legend.position = "top")
-                                 
 
 # 
 # # cahnge order of rs111457485
