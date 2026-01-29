@@ -150,62 +150,6 @@ BLCA_N_fgfr_GT <- BLCA_N_fgfr_GT[,c(1,13:16,2:11)]
 BLCA_T_fgfr_GT <- BLCA_T_fgfr_GT[,c(1,13:16,2:11)]
 
 
-
-# 
-# #### Vln Box plot ####
-# 
-# blca_T_long <- BLCA_T_fgfr %>%
-#   pivot_longer(
-#     cols = -c(PID,total_FGFR3),
-#     names_to = "isoform",
-#     values_to = "tpm"
-#   )
-# 
-# 
-# blca_N_long <- BLCA_N_fgfr %>%
-#   pivot_longer(
-#     cols = -c(PID,total_FGFR3),
-#     names_to = "isoform",
-#     values_to = "tpm"
-#   )
-# 
-# 
-# # Muscle plot
-# p_blca_Tumor <- blca_T_long %>%
-#   ggplot(aes(x = isoform, y = log2(tpm+1))) +  # Changed x to isoform
-#   geom_boxplot(width = 0.4, linewidth = 0.5, colour = "black", 
-#                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
-#   geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
-#   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
-#   # Removed facet_wrap
-#   theme_classic() +
-#   theme(axis.title = element_blank(),
-#         axis.text.y = element_text(color = "black", size = 10),
-#         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-#         legend.position = "none") + ylim(c(0,12)) +
-#   ggtitle("Tumor (n=407)")
-# 
-# 
-# p_blca_Normal <- blca_N_long %>%
-#   ggplot(aes(x = isoform, y = log2(tpm+1))) +  # Changed x to isoform
-#   geom_boxplot(width = 0.4, linewidth = 0.5, colour = "black",
-#                fill = "#A8D5E2", alpha = 0.6,outlier.shape = NA) +
-#   geom_jitter(width = 0.15, size = 0.1, alpha = 0.5, color = "grey30") +
-#   stat_summary(fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000") +
-#   # Removed facet_wrap
-#   theme_classic() +
-#   theme(axis.title = element_blank(),
-#         axis.text.y = element_text(color = "black", size = 10),
-#         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-#         legend.position = "none") + ylim(c(0,12)) +
-#   ggtitle("Normal (n=19)")
-# 
-# 
-# p_blca_Normal  | p_blca_Tumor
-# 
-# 
-
-
 ####Adding Sample SEX info
 
 
@@ -269,9 +213,14 @@ blca_T_long <- blca_T_filt %>%
   )
 
 
+#SNP_TO_PLOT <- "rs2896518"
+#SNP_TO_PLOT <- "rs28482056"
 
 p_blca_sex_gt_N <- blca_N_long %>%
-  ggplot(aes(x = rs2896518, y = log2(tpm + 1), fill = gender)) +
+  filter(!is.na(.data[[SNP_TO_PLOT]]), .data[[SNP_TO_PLOT]] != "") %>%
+
+
+  ggplot(aes(x =.data[[SNP_TO_PLOT]], y = log2(tpm + 1), fill = gender)) +
   geom_boxplot(
     width = 0.4, linewidth = 0.5, colour = "black",
     alpha = 0.6, outlier.shape = NA,
@@ -295,11 +244,13 @@ p_blca_sex_gt_N <- blca_N_long %>%
     axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
     legend.position = "right"
   ) +
-  ggtitle("BLCA Normal: rs2896518 genotype vs FGFR3 isoform expression")
+  ggtitle(paste0("BLCA Normal:",SNP_TO_PLOT, " genotype vs FGFR3 isoform expression"))
 
 
 p_blca_sex_gt_T <- blca_T_long %>%
-  ggplot(aes(x = rs2896518, y = log2(tpm + 1), fill = gender)) +
+  filter(!is.na(.data[[SNP_TO_PLOT]]), .data[[SNP_TO_PLOT]] != "") %>%
+  ggplot(aes(x =.data[[SNP_TO_PLOT]], y = log2(tpm + 1), fill = gender)) +
+
   geom_boxplot(
     width = 0.4, linewidth = 0.5, colour = "black",
     alpha = 0.6, outlier.shape = NA,
@@ -323,7 +274,7 @@ p_blca_sex_gt_T <- blca_T_long %>%
     axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
     legend.position = "right"
   ) +
-  ggtitle("BLCA Tumor: rs2896518 genotype vs FGFR3 isoform expression")
+  ggtitle(paste0("BLCA Tumor:",SNP_TO_PLOT, " genotype vs FGFR3 isoform expression"))
 
 
 
@@ -334,8 +285,8 @@ p_blca_sex_gt_N|p_blca_sex_gt_T
 
 ### Do lm() 
 
-inputdf <- blca_N_filt
-inputdf <- blca_T_filt
+#inputdf <- blca_N_filt
+#inputdf <- blca_T_filt
 
 df.out <- data.frame()
 df_count.summary <- data.frame()
