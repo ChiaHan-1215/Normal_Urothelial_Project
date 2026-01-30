@@ -281,7 +281,22 @@ p_blca_sex_gt_T <- blca_T_long %>%
 
 p_blca_sex_gt_N|p_blca_sex_gt_T
 
+### IF needed for the number of GT seperated by sex, use this below for example 
+                                            
+blca_N_filt %>% count(gender, rs2896518) %>% tidyr::pivot_wider(
+         names_from = rs2896518,
+         values_from = n,
+         values_fill = 0
+)
 
+blca_T_filt %>% count(gender, rs2896518) %>% tidyr::pivot_wider(
+         names_from = rs2896518,
+         values_from = n,
+         values_fill = 0
+)
+
+                                            
+                                            
 
 ### Do lm() 
 
@@ -447,95 +462,3 @@ for (i in grep("_add",names(inputdf),value = T)){
   }
 }
 
-
-
-
-
-############################## CUT OF ###################################
-
-# 
-# # PLOT 
-# 
-# blca_T_long_s <- BLCA_T_fgfr_sex %>%
-#   pivot_longer(
-#     cols = -c(PID,total_FGFR3,gender),
-#     names_to = "isoform",
-#     values_to = "tpm"
-#   )
-# 
-# 
-# blca_N_long_s <- BLCA_N_fgfr_sex %>%
-#   pivot_longer(
-#     cols = -c(PID,total_FGFR3,gender),
-#     names_to = "isoform",
-#     values_to = "tpm"
-#   )
-# 
-# 
-# 
-# blca_N_long_s %>%
-#   ggplot(aes(x = isoform, y = log2(tpm + 1), fill = gender)) +  # 1. Added fill here
-#   geom_boxplot(width = 0.6, 
-#                linewidth = 0.5, 
-#                colour = "black", 
-#                alpha = 0.6, 
-#                outlier.shape = NA,
-#                position = position_dodge(width = 0.8)) + # 2. Optional: adjust spacing
-#   geom_jitter(aes(group = gender),                  # 3. Group dots by sex
-#               position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8), 
-#               size = 0.1, 
-#               alpha = 0.3, 
-#               color = "grey30") +
-#   stat_summary(fun = median, 
-#                geom = "point", 
-#                shape = 20, 
-#                size = 2, 
-#                color = "#FF0000",
-#                position = position_dodge(width = 0.8)) + # 4. Align red dots
-#   scale_fill_manual(values = c("MALE" = "#A8D5E2", "FEMALE" = "#F2BAC9")) +
-#   theme_classic() +
-#   theme(axis.title = element_blank(),
-#         axis.text.y = element_text(color = "black", size = 10),
-#         axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-#         legend.position = "top")
-
-
-# 
-# # cahnge order of rs111457485
-# sig_snp
-# plots <- list()
-# gene <- "FGFR3"
-# sp <- sig_snp[3]
-# 
-# for (i in gene){
-#   
-#   # i <- "FGFR3"
-#   counts <- l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>%  group_by(.data[[sp]]) %>% summarise(n=n())
-#   x_labels <- paste(counts[[sp]], "\n(n=", counts$n, ")", sep = "")
-#   # y_max <- max(l.plot[[i]], na.rm = TRUE) + 0.25
-#   
-#   
-#   p <-l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>% 
-#     ggplot(aes(x = .data[[sp]], y = .data[[i]], fill = .data[[sp]])) +
-#     geom_boxplot(
-#       width=0.5,lwd = 0.5, 
-#       outlier.shape=NA) + 
-#     
-#     scale_fill_manual(values = c("#F38491", "#6ECFF6", "#4197EC"),drop=F) +
-#     
-#     geom_point(shape = 1, size = 1.5, colour = "black",
-#                position = position_jitterdodge(jitter.width = 0.2,dodge.width = 1)) +
-#     # Add the mean point
-#     stat_summary(fun = mean, geom = "point",
-#                  position = position_dodge(width = 1),
-#                  shape = 19, size = 1.5, colour = "red") + theme_classic() + 
-#     theme(axis.title.x=element_blank(),
-#           axis.text.y = element_text(color = "black",size = 10),
-#           axis.text.x = element_text(color = "black",size = 8,angle = 45, hjust = 1), 
-#           axis.title.y =element_blank(),legend.position = "none",
-#           plot.title = element_text(size = 10, face = "plain", color = "black")) + scale_x_discrete(labels = x_labels) + #ylim(0, 45) +
-#     ggtitle(paste0("Expression of ",i," vs ",sp))
-#   
-#   
-#   #print(p)
-#   plots[[i]] <- p
