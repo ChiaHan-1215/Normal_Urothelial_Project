@@ -386,7 +386,8 @@ final_data_sub <- final_data_sub %>% mutate(Sample_Name=rownames(final_data_sub)
 FGFR3_Merged_data <- left_join(FGFR3_qn,final_data_sub,by="Sample_Name")
 
 # Load manifest file of sample age sex etc 
-gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,Ancestry)
+gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,AFR,EUR,ASN,Ancestry)
+
 
 final_FGFR3 <- left_join(gt_sample_man_sub,FGFR3_Merged_data,by = 'Sample_Name')
 
