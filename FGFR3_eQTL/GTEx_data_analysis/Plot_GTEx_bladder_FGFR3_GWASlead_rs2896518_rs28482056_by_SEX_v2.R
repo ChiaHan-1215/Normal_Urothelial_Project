@@ -4,6 +4,8 @@ library(vcfR)
 library(biomaRt)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
+library(lmPerm)
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
@@ -168,7 +170,7 @@ for (i in grep('rs',names(Mg_data_s),value = T)) {
 
 GTEx_keep_isoforms <- c('ENST00000340107.8','ENST00000481110.7','ENST00000352904.6')
 
-Mg_data_s <- Mg_data_s %>% select(GTEx_ID,SEX,AGE,RACE,rs2896518,rs2896518_add,rs28482056,rs28482056_add,all_of(GTEx_keep_isoforms))
+Mg_data_s <- Mg_data_s %>% dplyr::select(GTEx_ID,SEX,AGE,RACE,rs2896518,rs2896518_add,rs28482056,rs28482056_add,all_of(GTEx_keep_isoforms))
 
 
 ################################################################################################
@@ -396,3 +398,76 @@ p_GTEx_sex_gt <- GTEx_GT_iso %>% filter(!is.na(.data[[snp_plot]]), .data[[snp_pl
 
 
 p_GTEx_sex_gt
+
+###########################################################################################
+
+p_GTEx_M <- GTEx_GT_iso %>%
+  filter(gender == 1,
+         !is.na(.data[[snp_plot]]),
+         .data[[snp_plot]] != "") %>%
+  ggplot(aes(x = .data[[snp_plot]],
+             y = log2(tpm + 1),
+             fill = gender)) +
+  
+  geom_boxplot(
+    width = 0.4, linewidth = 0.5,
+    colour = "black", alpha = 0.6,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.1, alpha = 0.5,
+    color = "grey30"
+  ) +
+  stat_summary(
+    fun = median, geom = "point",
+    shape = 20, size = 2, color = "#FF0000"
+  ) +
+  scale_fill_manual(values = c("1" = "#A8D5E2")) +
+  facet_wrap(~ isoform, scales = "free_y") +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
+    legend.position = "none"
+  ) +
+  ggtitle(paste0("Male | ", snp_plot, " genotype vs FGFR3 isoform expression"))
+
+
+#---
+  
+ 
+p_GTEx_F <- GTEx_GT_iso %>%
+  filter(gender == 2,
+         !is.na(.data[[snp_plot]]),
+         .data[[snp_plot]] != "") %>%
+  ggplot(aes(x = .data[[snp_plot]],
+             y = log2(tpm + 1),
+             fill = gender)) +
+  
+  geom_boxplot(
+    width = 0.4, linewidth = 0.5,
+    colour = "black", alpha = 0.6,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.1, alpha = 0.5,
+    color = "grey30"
+  ) +
+  stat_summary(
+    fun = median, geom = "point",
+    shape = 20, size = 2, color = "#FF0000"
+  ) +
+  scale_fill_manual(values = c("2" = "#F2BAC9")) +
+  facet_wrap(~ isoform, scales = "free_y") +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
+    legend.position = "none"
+  ) +
+  ggtitle(paste0("Female | ", snp_plot, " genotype vs FGFR3 isoform expression"))
+
