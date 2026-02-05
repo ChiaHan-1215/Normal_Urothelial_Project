@@ -6,6 +6,8 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(lmPerm)
+library(patchwork)
+
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
@@ -173,16 +175,156 @@ GTEx_keep_isoforms <- c('ENST00000340107.8','ENST00000481110.7','ENST00000352904
 Mg_data_s <- Mg_data_s %>% dplyr::select(GTEx_ID,SEX,AGE,RACE,rs2896518,rs2896518_add,rs28482056,rs28482056_add,all_of(GTEx_keep_isoforms))
 
 
+### PLOT
+
+GTEx_GT_iso <- Mg_data_s %>%
+  rename(
+    PID = GTEx_ID,
+    gender = SEX
+  ) %>%
+  mutate(
+    gender = factor(gender, levels = c(1, 2)),
+    rs2896518 = factor(rs2896518)
+  ) %>%
+  pivot_longer(
+    cols = starts_with("ENST"),
+    names_to = "isoform",
+    values_to = "tpm"
+  )
+
+
+#rs28482056 
+#rs2896518
+snp_plot <- "rs2896518"
+#snp_plot <- "rs28482056"
+
+###########################################################################################
+
+
+Male_plot_data <- GTEx_GT_iso %>%
+  # Filter data as before
+  filter(gender == 1,
+         !is.na(.data[[snp_plot]]),
+         .data[[snp_plot]] != "") %>%
+  
+  # Group by the variables that define each boxplot
+  group_by(isoform, .data[[snp_plot]]) %>%
+  
+  # Create the label using paste() with a newline separator
+  # This is the key change that correctly creates a two-line string.
+  mutate(genotype_label = paste(.data[[snp_plot]], paste0("n=", n(), ""), sep = "\n")) %>%
+  # Ungroup to ensure clean plotting
+  ungroup()
+
+
+p_GTEx_M <- ggplot(Male_plot_data, aes(x = genotype_label,
+                                  y = log2(tpm + 1),
+                                  fill = gender)) +
+  geom_boxplot(
+    width = 0.4, linewidth = 0.5,
+    colour = "black", alpha = 0.6,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.8, alpha = 0.5,
+    color = "grey30"
+  ) +
+  stat_summary(
+    fun = median, geom = "point",
+    shape = 20, size = 2, color = "#FF0000"
+  ) +
+  scale_fill_manual(values = c("1" = "#A8D5E2")) +
+  facet_wrap(~ isoform, scales = "free_y") +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(color = "black", size = 10),
+    # For two-line labels, horizontal text is usually best.
+    axis.text.x = element_text(color = "black", size = 9, angle = 0, hjust = 1),
+    legend.position = "none"
+  ) +
+  scale_x_discrete(labels = function(x) gsub("\\\\n", "\n", x)) + 
+  ggtitle(paste0("Male | ", snp_plot, " genotype vs FGFR3 isoform expression"))
+
+# Display the final plot
+print(p_GTEx_M)
+
+#---
+  
+
+Female_plot_data <- GTEx_GT_iso %>%
+  # Filter data as before
+  filter(gender == 2,
+         !is.na(.data[[snp_plot]]),
+         .data[[snp_plot]] != "") %>%
+  
+  # Group by the variables that define each boxplot
+  group_by(isoform, .data[[snp_plot]]) %>%
+  
+  # Create the label using paste() with a newline separator
+  # This is the key change that correctly creates a two-line string.
+  mutate(genotype_label = paste(.data[[snp_plot]], paste0("n=", n(), ""), sep = "\n")) %>%
+  # Ungroup to ensure clean plotting
+  ungroup()
+
+
+ 
+p_GTEx_F <- ggplot(Female_plot_data, aes(x = genotype_label,
+                                       y = log2(tpm + 1),
+                                       fill = gender)) +
+  
+  geom_boxplot(
+    width = 0.4, linewidth = 0.5,
+    colour = "black", alpha = 0.6,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.8, alpha = 0.8,
+    color = "grey30"
+  ) +
+  stat_summary(
+    fun = median, geom = "point",
+    shape = 20, size = 2, color = "#FF0000"
+  ) +
+  scale_fill_manual(values = c("2" = "#F2BAC9")) +
+  facet_wrap(~ isoform, scales = "free_y") +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black", size = 9, angle = 0, hjust = 1),
+    legend.position = "none"
+  ) +
+  ggtitle(paste0("Female | ", snp_plot, " genotype vs FGFR3 isoform expression"))
+
+
+
+
+p_GTEx_M | p_GTEx_F
+
+
+
+
+
+
+
 ################################################################################################
 ########################################################################## Do lm()
 ################################################################################################
 
-inputdf <- Mg_data_s
+
+# Now filter with sex 
+
+sex_to_run <- 2
+
+inputdf <- Mg_data_s %>% filter(SEX == sex_to_run)
+
+
 # check the sex race age value to set it right 
-inputdf$SEX <- factor(inputdf$SEX, levels = c(1, 2))
+#inputdf$SEX <- factor(inputdf$SEX, levels = c(1, 2))
 inputdf$RACE <- factor(inputdf$RACE)
-
-
 
 ### Do lm() 
 
@@ -229,22 +371,9 @@ for (i in grep("_add",names(inputdf),value = T)){
   # names(inputdf[6:135]
   
   for(j in names(inputdf[9:11])){
+  
     
-    # j <- "FGFR3"
-    # j <- names(inputdf[8:16])[1]
-    # j <- names(inputdf[6:135])[20]
-    
-    # 3 model, all sample size should be same, add Permutation column
-    
-    # unadjust: TPM ~ SNP 
-    # adjust: TPM ~ SNP + age + sex
-    # adjust for EBV: TPM ~ SNP + age + sex +EBV
-    
-    # for subsets
-    # dynamically generate formula
-    fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj <- as.formula(paste0(j, "~" , i, " + SEX "))
-    #fmla_adj_ebv <- as.formula(paste0(j, "~" , i, " + Age_final + sex_final + EBV_final"))
+    #j <- "ENST00000481110.7"
     
     # Filter the data to exclude rows where the SNP dosage is 0
     filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
@@ -258,6 +387,17 @@ for (i in grep("_add",names(inputdf),value = T)){
     GT.count.1b <- as.character(unique(GT.count.1a[gsub("_add", "", i)]))
     GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
     GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
+    
+    
+    
+    # MODEL
+  
+    fmla_un <- as.formula(paste0(j, "~" , i))
+    fmla_adj <- as.formula(paste0(j, "~" , i, " + AGE + RACE "))
+    
+    # log2 TPM + 1
+    # fmla_un  <- as.formula(paste0("log2(", j, " + 1) ~ ", i))
+    # fmla_adj <- as.formula(paste0("log2(", j, " + 1) ~ ", i, " + AGE + RACE"))
     
     ######################################################
     ######### make 0 as 1, not sure we need here #########
@@ -285,10 +425,8 @@ for (i in grep("_add",names(inputdf),value = T)){
     #non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
     
     # Calculate mean values for SNP dosages 1 and 2
-    mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
-    mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
-    
-    
+    #mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
+    #mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
     
     
     # create temporary data frame
@@ -296,6 +434,8 @@ for (i in grep("_add",names(inputdf),value = T)){
       
       snp = i,
       variable = j,
+      sex=sex_to_run,
+      
       sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
       sample_over_zero = non_zero_count,
       perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
@@ -345,129 +485,9 @@ for (i in grep("_add",names(inputdf),value = T)){
   }
 }
 
-
-### PLOT
-
-GTEx_GT_iso <- Mg_data_s %>%
-  rename(
-    PID = GTEx_ID,
-    gender = SEX
-  ) %>%
-  mutate(
-    gender = factor(gender, levels = c(1, 2)),
-    rs2896518 = factor(rs2896518)
-  ) %>%
-  pivot_longer(
-    cols = starts_with("ENST"),
-    names_to = "isoform",
-    values_to = "tpm"
-  )
-
-#rs28482056 
-#rs2896518
-snp_plot <- "rs2896518"
-snp_plot <- "rs28482056"
-
-p_GTEx_sex_gt <- GTEx_GT_iso %>% filter(!is.na(.data[[snp_plot]]), .data[[snp_plot]] != "") %>%
-  ggplot(aes(x =.data[[snp_plot]], y = log2(tpm + 1), fill = gender)) +
-  
-  geom_boxplot(
-    width = 0.4, linewidth = 0.5, colour = "black",
-    alpha = 0.6, outlier.shape = NA,
-    position = position_dodge(width = 0.8)
-  ) +
-  geom_jitter(
-    aes(group = gender),
-    position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8),
-    size = 0.1, alpha = 0.5, color = "grey30"
-  ) +
-  stat_summary(
-    fun = median, geom = "point", shape = 20, size = 2, color = "#FF0000",
-    position = position_dodge(width = 0.8)
-  ) +
-  scale_fill_manual(values = c("1" = "#A8D5E2", "2" = "#F2BAC9")) +
-  facet_wrap(~ isoform, scales = "free_y") +
-  theme_classic() +
-  theme(
-    axis.title = element_blank(),
-    axis.text.y = element_text(color = "black", size = 10),
-    axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-    legend.position = "right"
-  ) +
-  ggtitle(paste0("GTEx:",snp_plot, " genotype vs FGFR3 isoform expression"))
-
-
-p_GTEx_sex_gt
-
-###########################################################################################
-
-p_GTEx_M <- GTEx_GT_iso %>%
-  filter(gender == 1,
-         !is.na(.data[[snp_plot]]),
-         .data[[snp_plot]] != "") %>%
-  ggplot(aes(x = .data[[snp_plot]],
-             y = log2(tpm + 1),
-             fill = gender)) +
-  
-  geom_boxplot(
-    width = 0.4, linewidth = 0.5,
-    colour = "black", alpha = 0.6,
-    outlier.shape = NA
-  ) +
-  geom_jitter(
-    width = 0.15,
-    size = 0.1, alpha = 0.5,
-    color = "grey30"
-  ) +
-  stat_summary(
-    fun = median, geom = "point",
-    shape = 20, size = 2, color = "#FF0000"
-  ) +
-  scale_fill_manual(values = c("1" = "#A8D5E2")) +
-  facet_wrap(~ isoform, scales = "free_y") +
-  theme_classic() +
-  theme(
-    axis.title = element_blank(),
-    axis.text.y = element_text(color = "black", size = 10),
-    axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-    legend.position = "none"
-  ) +
-  ggtitle(paste0("Male | ", snp_plot, " genotype vs FGFR3 isoform expression"))
-
-
-#---
-  
- 
-p_GTEx_F <- GTEx_GT_iso %>%
-  filter(gender == 2,
-         !is.na(.data[[snp_plot]]),
-         .data[[snp_plot]] != "") %>%
-  ggplot(aes(x = .data[[snp_plot]],
-             y = log2(tpm + 1),
-             fill = gender)) +
-  
-  geom_boxplot(
-    width = 0.4, linewidth = 0.5,
-    colour = "black", alpha = 0.6,
-    outlier.shape = NA
-  ) +
-  geom_jitter(
-    width = 0.15,
-    size = 0.1, alpha = 0.5,
-    color = "grey30"
-  ) +
-  stat_summary(
-    fun = median, geom = "point",
-    shape = 20, size = 2, color = "#FF0000"
-  ) +
-  scale_fill_manual(values = c("2" = "#F2BAC9")) +
-  facet_wrap(~ isoform, scales = "free_y") +
-  theme_classic() +
-  theme(
-    axis.title = element_blank(),
-    axis.text.y = element_text(color = "black", size = 10),
-    axis.text.x = element_text(color = "black", size = 9, angle = 45, hjust = 1),
-    legend.position = "none"
-  ) +
-  ggtitle(paste0("Female | ", snp_plot, " genotype vs FGFR3 isoform expression"))
-
+#sum_M <- df.out
+#sum_F <- df.out
+#Summary_log2TPM_p1 <- rbind(sum_M,sum_F)
+#Summary_rawTPM <- rbind(sum_M,sum_F)
+#FF <- rbind(Summary_rawTPM,Summary_log2TPM_p1)
+# write.table(FF,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/GTEx_data/project_FGFR3/plots/GTEx_summ.csv',row.names = F,col.names = T,quote = F,sep = ',')
