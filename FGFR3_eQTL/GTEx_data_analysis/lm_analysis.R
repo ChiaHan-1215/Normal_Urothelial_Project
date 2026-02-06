@@ -196,12 +196,8 @@ Mg_data_s <- Mg_data_s[,c(names(Mg_data_s)[1:15],setdiff(names(Mg_data_s),names(
 inputdf <- Mg_data_s
 # check the sex race age value to set it right 
 inputdf$SEX <- factor(inputdf$SEX, levels = c(1, 2))
-inputdf$AGE <- factor(
-  inputdf$AGE,
-  levels = c("20-29", "30-39", "40-49", "50-59", "60-69", "70-79"),
-  ordered = TRUE
-)
-inputdf$DTHHRDY <- factor(inputdf$DTHHRDY)
+inputdf$AGE <- as.numeric(inputdf$AGE)
+inputdf$RACE <- factor(inputdf$RACE)
 
 
 
@@ -215,9 +211,7 @@ df_count.summary <- data.frame()
 
 
 for (i in grep("_add",names(inputdf),value = T)){
-  # i <- "rs61735104_add"
-  # i <- "rs111457485_add" 
-  # i <- "rs16997913_add"
+  # i <- "rs2896518_add"
   
   
   function.names <- c("max", "min", "mean", "median", "sd")
@@ -257,19 +251,9 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   for(j in names(inputdf[6:15])){
     
-    # j <- "FGFR3"
-    # j <- "ENST00000481110.7"
-    # j <- names(inputdf[6:135])[20]
+    # j <- "ENST00000260795.8"
     
-    # 3 model, all sample size should be same, add Permutation column
     
-    # unadjust: TPM ~ SNP 
-    # adjust: TPM ~ SNP + age + sex
-    
-    # for subsets
-    # dynamically generate formula
-    fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj <- as.formula(paste0(j, "~" , i, " + SEX + AGE + DTHHRDY "))
     
     # Filter the data to exclude rows where the SNP dosage is 0
     filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
@@ -284,6 +268,18 @@ for (i in grep("_add",names(inputdf),value = T)){
     GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
     GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
     
+    
+    
+    # 3 model, all sample size should be same, add Permutation column
+    
+    
+    # unadjust: TPM ~ SNP 
+    # adjust: TPM ~ SNP + age + sex
+    # interaction with SEX
+    fmla_un <- as.formula(paste0(j, "~" , i))
+    fmla_adj <- as.formula(paste0(j, "~" , i, " + SEX + AGE + RACE "))
+    fmla_adj_int <- as.formula(paste0(j," ~ ",i, "+ SEX + AGE + RACE + ", i, "*SEX"))
+    
     ######################################################
     ######### make 0 as 1, not sure we need here #########
     # filtered_0_1_2_only <- filtered_0_1_2_only %>% mutate(!!i := ifelse(.[[i]] == 0, 1, .[[i]]))
@@ -292,29 +288,24 @@ for (i in grep("_add",names(inputdf),value = T)){
     # fit lm model
     fit_un <- lm(fmla_un, filtered_0_1_2_only)
     fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
-    
+    fit_int <- lm(fmla_adj_int,filtered_0_1_2_only)
     
     
     ########################################
     # run permutation #
     ########################################
     
-    prm <- lmp(fmla_un, data = filtered_0_1_2_only, perm = "Prob")
-    prm_adj <- lmp(fmla_adj, data = filtered_0_1_2_only, perm = "Prob")
+    #prm <- lmp(fmla_un, data = filtered_0_1_2_only, perm = "Prob")
+    #prm_adj <- lmp(fmla_adj, data = filtered_0_1_2_only, perm = "Prob")
     
     # Calculate the number of non-zero samples in j where i is not NA
-    
     # use this since the lm() is done based on the sample inculde GT
-    non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
-    
+    # non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
     #non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
     
     # Calculate mean values for SNP dosages 1 and 2
-    mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
-    mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
-    
-    
-    
+    #mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
+    #mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
     
     # create temporary data frame
     df.lm <- data.frame(
@@ -322,8 +313,9 @@ for (i in grep("_add",names(inputdf),value = T)){
       snp = i,
       variable = j,
       sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
-      sample_over_zero = non_zero_count,
-      perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
+      
+      #sample_over_zero = non_zero_count,
+      #perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
       
       geno_0 = GT.count.0b,
       geno_1 = GT.count.1b,
@@ -343,11 +335,9 @@ for (i in grep("_add",names(inputdf),value = T)){
         print(paste0('error of NA'))
         return(NA)}) ,
       
-      p.prm = tryCatch({coef(summary(prm))[2,3]}, error=function(e){
-        print(paste0('error of NA'))
-        return(NA)}),
-      
-      
+      # p.prm = tryCatch({coef(summary(prm))[2,3]}, error=function(e){
+      #   print(paste0('error of NA'))
+      #   return(NA)}),
       
       beta = tryCatch(round(coef(summary(fit_un))[2,1],4), error=function(e){print(paste0('error of tissue '))
         return(NA)}),
@@ -355,9 +345,16 @@ for (i in grep("_add",names(inputdf),value = T)){
       #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
       
       p.value_adj_sex_age = coef(summary(fit_adj))[2,4],
-      p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
+      #p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
       beta_adj_sex_age = coef(summary(fit_adj))[2,1],
-      StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4))
+      #StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4)
+      
+      p.value_adj_int = tryCatch(
+        coef(summary(fit_int))[grep(paste0(i, ":SEX"), rownames(coef(summary(fit_int)))), "Pr(>|t|)"],error = function(e) NA)
+      
+      
+      )
+      
     
     
     # bind rows of temporary data frame to the results data frame
@@ -367,5 +364,4 @@ for (i in grep("_add",names(inputdf),value = T)){
     
   }
 }
-
 
