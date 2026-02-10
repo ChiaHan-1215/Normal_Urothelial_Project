@@ -1,8 +1,5 @@
-# LD-proxy: https://ldlink.nih.gov/ldproxy
-# Downloaded LD proxy output, liftOver the LD proxy SNPs location from hg19 to hg38
-# extract the GT from In-house data and see how many GT are exist in the porxy output
-
-
+# Download LD proxy output, extract the GT from In-house data and see how many GT are exist in the porxy output
+# change the LD proxy output location from hg19 to hg38
 # Date: 02092026
 
 library(dplyr)
@@ -10,8 +7,14 @@ library(dplyr)
 setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/LD_proxy_files/')
 proxy <- read.table('proxy_rs2896518_ALL.pop_R2_No_collapse_FORGEdb_500000bp.txt',header = T,stringsAsFactors = F)
 
-# exract and save the pos 
-write.table(proxy %>% filter(RS_Number != '.') %>% select(RS_Number),'proxy_rs2896518_SNPlist.txt',col.names = F,row.names = F,sep = '\t',quote = F)
+
+# exract and save the rsID, and use UCSC table browser to input the SNP IDs and outptu the location 
+# https://genome.ucsc.edu/cgi-bin/hgTables
+# Parameter Setting: Assembly: hg38, Grooup: Variation, Track: dbSNP 155, Table: All dbSNP(155)(dbSnp 155)
+# and upload the rsid list in the "Define region of interest --> UPload list"
+# chose as csv to save
+
+#write.table(proxy %>% filter(RS_Number != '.') %>% select(RS_Number),'proxy_rs2896518_SNPlist.txt',col.names = F,row.names = F,sep = '\t',quote = F)
 
 
 # read the lifted file
