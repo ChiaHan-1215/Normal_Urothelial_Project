@@ -221,7 +221,10 @@ library(biomaRt)
 # ==============================================================================
 # 1) LOAD VCF AND EXTRACT DATA
 # ==============================================================================
-vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.unique.vcf.gz"
+
+#vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_500k_uniq.vcf.gz"
+#vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.unique.vcf.gz"
+
 vcf.file.tmp <- read.vcfR(vcf_path)
 
 fix_df <- as.data.frame(getFIX(vcf.file.tmp))
@@ -386,14 +389,24 @@ final_data_sub <- final_data_sub %>% mutate(Sample_Name=rownames(final_data_sub)
 FGFR3_Merged_data <- left_join(FGFR3_qn,final_data_sub,by="Sample_Name")
 
 # Load manifest file of sample age sex etc 
-gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,AFR,EUR,ASN,Ancestry)
+gt_sample_man_sub <- gt_sample_man %>% dplyr::select(Sample_Name,Predicted_Sex,AFR,EUR,ASN,Ancestry,`Sample Pass QC`)
+
+# Load RIN score file
+RIN <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Sample_Genotyping/DNA_RNA_Log_for_Tissues.xlsx',sheet = 7)
+RIN$Sample_Name <- paste0(RIN$`Sample Type...2`,"_",RIN$Sample...1)
+RIN <- RIN[,c(36,12)]
+names(RIN) <- c("Sample_Name","RIN_score")
+
+gt_sample_man_sub <- gt_sample_man_sub %>%
+  left_join(RIN, by = "Sample_Name") %>%
+  relocate(RIN_score, .after = Sample_Name)
 
 
 final_FGFR3 <- left_join(gt_sample_man_sub,FGFR3_Merged_data,by = 'Sample_Name')
 
 # Done save 
 # write.table(final_FGFR3,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Parse_scRNA-seq/Sample_Genotyping/FGFR3_isoform_TMM_INT.snp.csv',row.names = F,quote = F,sep = ',')
-
+# write.table(df_fgfr,'/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k.csv',row.names = F,quote = F,sep = ',')
 
 ###########################################################
 ## lm analysis ref from BL project #######
@@ -472,7 +485,7 @@ for (i in names(df_fgfr)[12:79]) {
 }
 
 
-df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:11],setdiff(names(df_fgfr),names(df_fgfr)[1:11]) %>% sort())]
+df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:16],setdiff(names(df_fgfr),names(df_fgfr)[1:16]) %>% sort())]
 
 #############################
 
@@ -848,5 +861,4 @@ for (i in gene){
 
 combined_plot <- plots[["LINC01426"]] + plots[["LINC01426_ENST00000420877.1"]] +  plots[["LINC01426__rs5"]] + plots[["LINC01426_ENST00000420877.1__rs5"]] + plot_layout(ncol = 4)
 print(combined_plot)
-
 
