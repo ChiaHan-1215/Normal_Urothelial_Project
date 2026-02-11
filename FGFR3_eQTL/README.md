@@ -2,13 +2,13 @@
 - For in-house data, merge dataset with cov and do eQTL of:
 
 ```
-According from oscar's excel TCGA results:
+# According from oscar's excel TCGA results:
 
 p.value: expression ~ snp
-p.value_adj: expression ~ snp + sex + age
-p.value_adj.r: expression ~ snp + sex + age + race
-p.value_adj.int: expression ~ snp + sex + age + snp * sex
-p.value_adj.r.int: expression ~ snp + sex + age + race + snp * sex
+p.value_adj: expression ~ snp + sex + Ancestry
+p.value_adj_2: expression ~ snp + sex + Ancestry + AFR + EUR + ASN
+p.value_adj_int: expression ~ snp + sex + Ancestry + snp * sex
+
 
 ```
 
