@@ -384,6 +384,12 @@ final_data_sub <- final_data_sub[-1,]
 # remove duplicateion 
 final_data_sub <- final_data_sub[,!duplicated(names(final_data_sub))]
 
+base_id <- sub("\\.[0-9]+$", "", rownames(final_data_sub))
+keep <- !duplicated(base_id)
+final_data_sub <- final_data_sub[keep, ]
+rownames(final_data_sub) <- base_id[keep]
+
+
 final_data_sub <- final_data_sub %>% mutate(Sample_Name=rownames(final_data_sub),.before = 1)
 
 FGFR3_Merged_data <- left_join(FGFR3_qn,final_data_sub,by="Sample_Name")
@@ -401,6 +407,7 @@ gt_sample_man_sub <- gt_sample_man_sub %>%
   left_join(RIN, by = "Sample_Name") %>%
   relocate(RIN_score, .after = Sample_Name)
 
+gt_sample_man_sub <- gt_sample_man_sub[!duplicated(gt_sample_man_sub$Sample_Name), ]
 
 final_FGFR3 <- left_join(gt_sample_man_sub,FGFR3_Merged_data,by = 'Sample_Name')
 
@@ -439,7 +446,7 @@ df_fgfr$Ancestry <-as.factor(df_fgfr$Ancestry)
 #### Make SNP as 0,1,2 
 
 # Iterate through SNP columns
-for (i in names(df_fgfr)[12:79]) {
+for (i in names(df_fgfr)[17:ncol(df_fgfr)]) {
   
   #i <- "4:1763224:G:C"
   n1 <- paste0(i, "_add")
@@ -453,7 +460,7 @@ for (i in names(df_fgfr)[12:79]) {
   
   # 2. Split Genotype into Alleles (e.g., "G/G" -> "G", "G")
   tp1 <- tp1 %>%
-    separate(Genotype, into = c("A1", "A2"), sep = "/", 
+    tidyr::separate(Genotype, into = c("A1", "A2"), sep = "/", 
              fill = "right", extra = "merge", remove = FALSE)
   
   # 3. Identify Homozygotes (where Allele 1 == Allele 2)
