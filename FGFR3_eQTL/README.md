@@ -2,7 +2,7 @@
 - For in-house data, merge dataset with cov and do eQTL of:
 
 ```
-# According from oscar's excel TCGA results:
+# list of model to test:
 
 p.value: expression ~ snp
 p.value_adj: expression ~ snp + sex + Ancestry
