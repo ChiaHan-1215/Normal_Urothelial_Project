@@ -494,7 +494,6 @@ df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:16],setdiff(names(df_fgfr),names(df_fgfr)
 megdata <- list()
 
 megdata[["FGFR3"]] <- df_fgfr
-#megdata[["TMB_SBS"]] <- mt_ug
 
 
 ####################################################################
@@ -510,8 +509,14 @@ megdata[["FGFR3"]] <- df_fgfr
 
 
 inputdf <- megdata$FGFR3  
-
+# inputdf <- Indf
 # 
+
+str(inputdf)
+
+inputdf$Predicted_Sex <- factor(inputdf$Predicted_Sex)
+inputdf$Ancestry <- factor(inputdf$Ancestry)
+
 df.out <- data.frame()
 df_count.summary <- data.frame()
 # 
@@ -522,7 +527,7 @@ df_count.summary <- data.frame()
 for (i in grep("_add",names(inputdf),value = T)){
   # i <- "4:1768718_add"
   # i <- "rs111457485_add" 
-  # i <- "rs16997913_add"
+  # i <- "rs114133810_add"
   
   
   function.names <- c("max", "min", "mean", "median", "sd")
@@ -560,23 +565,10 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   # names(inputdf[6:135]
   
-  for(j in names(inputdf[4:11])){
+  for(j in names(inputdf)[c(10,16,11)]){
     
-    # j <- "FGFR3"
-    # j <- names(inputdf[8:16])[1]
-    # j <- names(inputdf[6:135])[20]
-    
-    # 3 model, all sample size should be same, add Permutation column
-    
-    # unadjust: TPM ~ SNP 
-    # adjust: TPM ~ SNP + age + sex
-    # adjust for EBV: TPM ~ SNP + age + sex +EBV
-    
-    # for subsets
-    # dynamically generate formula
-    fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + Ancestry "))
-    #fmla_adj_ebv <- as.formula(paste0(j, "~" , i, " + Age_final + sex_final + EBV_final"))
+    # j <- "ENST00000340107"
+
     
     # Filter the data to exclude rows where the SNP dosage is 0
     filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
@@ -591,6 +583,14 @@ for (i in grep("_add",names(inputdf),value = T)){
     GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
     GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
     
+    
+    # dynamically generate formula
+    fmla_un <- as.formula(paste0(j, "~" , i))
+    fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry"))
+    fmla_adj_2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry"))
+    fmla_adj_3 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry + RIN_score + AFR + EUR + ASN"))
+  
+    
     ######################################################
     ######### make 0 as 1, not sure we need here #########
     # filtered_0_1_2_only <- filtered_0_1_2_only %>% mutate(!!i := ifelse(.[[i]] == 0, 1, .[[i]]))
@@ -599,8 +599,8 @@ for (i in grep("_add",names(inputdf),value = T)){
     # fit lm model
     fit_un <- lm(fmla_un, filtered_0_1_2_only)
     fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
-    
-    
+    fit_adj_2 <- lm(fmla_adj_2, filtered_0_1_2_only)
+    fit_adj_3 <- lm(fmla_adj_3, filtered_0_1_2_only)
     
     ########################################
     # run permutation #
@@ -861,4 +861,3 @@ for (i in gene){
 
 combined_plot <- plots[["LINC01426"]] + plots[["LINC01426_ENST00000420877.1"]] +  plots[["LINC01426__rs5"]] + plots[["LINC01426_ENST00000420877.1__rs5"]] + plot_layout(ncol = 4)
 print(combined_plot)
-
