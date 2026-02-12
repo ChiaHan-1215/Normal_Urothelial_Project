@@ -7,8 +7,8 @@
 p.value: expression ~ snp
 p.value_adj: expression ~ snp + sex + Ancestry
 p.value_adj_int: expression ~ snp + sex + Ancestry + snp * sex
-p.value_adj_2: expression ~ snp + sex + Ancestry + RIN + AFR + EUR + ASN
-
+p.value_adj_2: expression ~ snp + sex + RIN + AFR + EUR + ASN
+p.value_adj_3: expression ~ snp + sex + RIN + AFR + EUR + ASN + snp * sex
 
 ```
 
