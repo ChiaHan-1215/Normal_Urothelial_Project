@@ -670,10 +670,16 @@ for (i in grep("_add",names(inputdf),value = T)){
       
       #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
       
-      p.value_adj_sex_age = coef(summary(fit_adj))[2,4],
-      p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
-      beta_adj_sex_age = coef(summary(fit_adj))[2,1],
-      StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4))
+      p.value_adj = coef(summary(fit_adj))[2,4],
+      beta_adj = coef(summary(fit_adj))[2,1],
+      StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4),
+      # p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
+      p.value_adj_2_int = tryCatch(coef(summary(fit_adj_2))[grep(paste0(i, ":SEX"), rownames(coef(summary(fit_int)))), "Pr(>|t|)"],error = function(e) NA),
+      p.value_adj_3 = coef(summary(fit_adj_3))[2,4],
+      beta_adj_3 = coef(summary(fit_adj_3))[2,1],
+      p.value_adj_4_int = tryCatch(coef(summary(fit_adj_2))[grep(paste0(i, ":SEX"), rownames(coef(summary(fit_int)))), "Pr(>|t|)"],error = function(e) NA)
+
+    )
     
     
     # bind rows of temporary data frame to the results data frame
