@@ -594,8 +594,9 @@ for (i in grep("_add",names(inputdf),value = T)){
     # dynamically generate formula
     fmla_un <- as.formula(paste0(j, "~" , i))
     fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry"))
-    fmla_adj_2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry"))
-    fmla_adj_3 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry + RIN_score + AFR + EUR + ASN"))
+    fmla_adj_2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry +",i,paste0("*Predicted_Sex")))
+    fmla_adj_3 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN"))
+    fmla_adj_4 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN + ",i,paste0("*Predicted_Sex")))
   
     
     ######################################################
@@ -608,6 +609,7 @@ for (i in grep("_add",names(inputdf),value = T)){
     fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
     fit_adj_2 <- lm(fmla_adj_2, filtered_0_1_2_only)
     fit_adj_3 <- lm(fmla_adj_3, filtered_0_1_2_only)
+    fit_adj_4 <- lm(fmla_adj_4, filtered_0_1_2_only)
     
     ########################################
     # run permutation #
@@ -621,11 +623,11 @@ for (i in grep("_add",names(inputdf),value = T)){
     # use this since the lm() is done based on the sample inculde GT
     non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
     
-    #non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
+    # non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
     
     # Calculate mean values for SNP dosages 1 and 2
-    mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
-    mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
+    # mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
+    # mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
     
     
     
