@@ -1,3 +1,54 @@
+# Use LDlinkR to extract SNP proxy
+
+# Date: 02092026
+
+library(LDlinkR)
+
+
+# EUR hg38 coord 
+
+my_proxies <- LDproxy(snp = "rs2896518", 
+                      pop = "EUR", 
+                      r2d = "r2", 
+                      token = "c22a071b5bda",genome_build = "grch38_high_coverage",win_size = 500000
+)
+
+
+my_proxies$Coord <- gsub(':','_',my_proxies$Coord)
+
+# Download LD proxy output, extract the GT from In-house data and see how many GT are exist in the porxy output
+
+
+library(dplyr)
+
+setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/LD_proxy_files/')
+
+# read in house data
+Indf <- read.csv('../FGFR3_isoform_TMM_INT.snp_500k.csv')
+
+Our_target <- names(Indf) %>% grep('chr4_[0-9+]+$|rs[0-9]+$',.,value = T) %>% as.data.frame()
+names(Our_target) <- "Coord"
+
+target_for_rsid <- Our_target %>% filter(grepl("^rs[0-9]+$", Coord))
+names(target_for_rsid) <- "RS_Number"
+
+
+cb_for_pos <- inner_join(Our_target %>% filter(!grepl("^rs[0-9]+$", Coord)),my_proxies,by = 'Coord')
+cb_for_pos <- cb_for_pos[,c(2,1,3,4:11)]
+
+cb_for_rsid <- inner_join(target_for_rsid,my_proxies,by = 'RS_Number')
+
+ff <- rbind(cb_for_pos,cb_for_rsid)
+
+
+###########################################
+############ CUT OFF OLD ##################
+###########################################
+
+
+
+
+
 # Download LD proxy output, extract the GT from In-house data and see how many GT are exist in the porxy output
 # change the LD proxy output location from hg19 to hg38
 # Date: 02092026
