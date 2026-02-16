@@ -209,7 +209,24 @@ final_normalized <- final_normalized[, c("GENESYMBOL", "GENEID", colnames(cts))]
 final_normalized <- final_normalized[,c(-2,-3)]
 # rename to fit the sctipt 
 qnorm.DeseqNC.set <- final_normalized
-#write.table('')
+
+
+###############################################################################################################
+            ###################################  For merge TPM data  ############################
+###############################################################################################################
+cts <- as.data.frame(cts)
+# add gene annotation back (NO hard-coded 349/348)
+cts$GENEID <- rownames(cts)
+cts$GENESYMBOL <- expected_counts$GENESYMBOL[match(cts$GENEID,
+                                               expected_counts$GENEID)]
+# order columns: gene info first, then samples
+cts <- cts[, c("GENESYMBOL", "GENEID", colnames(cts)[1:114])]
+qnorm.DeseqNC.set <- cts
+###############################################################################################################
+
+
+
+
 ###############################################################################################################
 ###############################################################################################################
 
