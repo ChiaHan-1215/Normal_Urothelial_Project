@@ -599,13 +599,13 @@ for (i in grep("_add",names(inputdf),value = T)){
     GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
     GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
     
-    
     # dynamically generate formula
     fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry"))
-    fmla_adj_2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry +",i,paste0("*Predicted_Sex")))
-    fmla_adj_3 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN"))
-    fmla_adj_4 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN + ",i,paste0("*Predicted_Sex")))
+    fmla_adj1 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry + RIN_score"))
+    fmla_adj2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + AFR + EUR + ASN + RIN_score"))
+    fmla_adj_int1 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + Ancestry +",i,paste0("*Predicted_Sex"))) 
+    fmla_adj_int2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN + ",i,paste0("*Predicted_Sex")))
+    
     
     
     ######################################################
@@ -615,10 +615,10 @@ for (i in grep("_add",names(inputdf),value = T)){
     
     # fit lm model
     fit_un <- lm(fmla_un, filtered_0_1_2_only)
-    fit_adj <- lm(fmla_adj, filtered_0_1_2_only)
-    fit_adj_2 <- lm(fmla_adj_2, filtered_0_1_2_only)
-    fit_adj_3 <- lm(fmla_adj_3, filtered_0_1_2_only)
-    fit_adj_4 <- lm(fmla_adj_4, filtered_0_1_2_only)
+    fit_adj1 <- lm(fmla_adj1, filtered_0_1_2_only)
+    fit_adj2 <- lm(fmla_adj2, filtered_0_1_2_only)
+    fit_adj_int1 <- lm(fmla_adj_int1, filtered_0_1_2_only)
+    fit_adj_int2 <- lm(fmla_adj_int2, filtered_0_1_2_only)
     
     ########################################
     # run permutation #
@@ -638,7 +638,11 @@ for (i in grep("_add",names(inputdf),value = T)){
     # mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
     # mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
     
-    
+    model_un = paste0(formula(fit_un)[2],"~",formula(fit_un)[3]),
+    model_adj1 = paste0(formula(fit_adj1)[2],"~",formula(fit_adj)[3]),
+    model_adj2 = paste0(formula(fit_adj2)[2],"~",formula(fit_adj_3)[3]),
+    model_adj_int1 = paste0(formula(fit_adj_int1)[2],"~",formula(fit_adj_2)[3]),
+    model_adj_int2 = paste0(formula(fit_adj_int2)[2],"~",formula(fit_adj_4)[3]),
     
     
     # create temporary data frame
