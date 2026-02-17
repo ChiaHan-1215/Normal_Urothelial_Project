@@ -665,7 +665,11 @@ for (i in grep("_add",names(inputdf),value = T)){
       #mean_value_0_and_1=mean_value_1,
       #mean_value_2=mean_value_2,
       
-      
+      model_un = paste0(formula(fit_un)[2],"~",formula(fit_un)[3]),
+      model_adj1 = paste0(formula(fit_adj1)[2],"~",formula(fit_adj1)[3]),
+      model_adj2 = paste0(formula(fit_adj2)[2],"~",formula(fit_adj2)[3]),
+      model_adj_int1 = paste0(formula(fit_adj_int1)[2],"~",formula(fit_adj_int1)[3]),
+      model_adj_int2 = paste0(formula(fit_adj_int2)[2],"~",formula(fit_adj_int2)[3]),
       
       # add lm() result
       
@@ -674,25 +678,25 @@ for (i in grep("_add",names(inputdf),value = T)){
       #  return(NA)}),
       
       # Main effects (wrapped in tryCatch to prevent loop breaks)
-      p.value = tryCatch(coef(summary(fit_un))[2,4], error = function(e) NA),
-      beta = tryCatch(round(coef(summary(fit_un))[2,1], 4), error = function(e) NA),
-    
+      p.value_un = tryCatch(coef(summary(fit_un))[2,4], error = function(e) NA),
+      beta_un = tryCatch(round(coef(summary(fit_un))[2,1], 4), error = function(e) NA),
+      
       #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
       
-      p.value_adj = coef(summary(fit_adj))[2,4],
-      beta_adj = coef(summary(fit_adj))[2,1],
+      p.value_adj1 = coef(summary(fit_adj1))[2,4],
+      beta_adj1 = coef(summary(fit_adj1))[2,1],
+      
       # StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4),
       # p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
-      p.value_adj_2_int = tryCatch(coef(summary(fit_adj_2))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_2)))), "Pr(>|t|)"],error = function(e) NA)[1],
       
-      p.value_adj_3 = tryCatch(coef(summary(fit_adj_3))[2,4], error = function(e) NA),
-      beta_adj_3 = tryCatch(coef(summary(fit_adj_3))[2,1], error = function(e) NA),
+      p.value_adj2 = coef(summary(fit_adj2))[2,4],
+      beta_adj2 = coef(summary(fit_adj2))[2,1],
       
-      p.value_adj_4_int = tryCatch(coef(summary(fit_adj_4))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_4)))), "Pr(>|t|)"],error = function(e) NA)[1]
-      
+      p.value_adj_int1 = tryCatch(coef(summary(fit_adj_int1))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int1)))), "Pr(>|t|)"],error = function(e) NA)[1],
+      p.value_adj_int2 = tryCatch(coef(summary(fit_adj_int2))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int2)))), "Pr(>|t|)"],error = function(e) NA)[1]
+        
     )
-    
-    
+
     # bind rows of temporary data frame to the results data frame
     
     df.out <- rbind(df.out, df.lm)
