@@ -270,8 +270,6 @@ library(GenomicRanges)
 library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
-
-
 # SNPlocs.Hsapiens.dbSNP155.GRCh38 uses NCBI style: "1", "2", ... not "chr1"
 geno_with_pos$CHR <- gsub("^chr", "", geno_with_pos$CHR, ignore.case = TRUE)
 
@@ -399,7 +397,7 @@ FGFR3_qn <- FGFR3_qn[,c(9,1:8)]
 final_data_sub <- final_data
 # Test it use rsid only 
 #final_data_sub <- final_data[grep("rs",final_data$SNP_ID),]
-final_data_sub <- final_data_sub[,c(3,6:125)]
+final_data_sub <- final_data_sub[,c(4,9:ncol(final_data_sub))]
 final_data_sub <- t(final_data_sub) %>% as.data.frame()
 names(final_data_sub) <- final_data_sub[1,]
 final_data_sub <- final_data_sub[-1,]
@@ -425,6 +423,10 @@ RIN <- readxl::read_xlsx('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal
 RIN$Sample_Name <- paste0(RIN$`Sample Type...2`,"_",RIN$Sample...1)
 RIN <- RIN[,c(36,12)]
 names(RIN) <- c("Sample_Name","RIN_score")
+# replace NA RIN score to the lowest 
+# Method 1: Simple replacement
+RIN$RIN_score[is.na(RIN$RIN_score)] <- min(RIN$RIN_score, na.rm = TRUE)
+
 
 gt_sample_man_sub <- gt_sample_man_sub %>%
   left_join(RIN, by = "Sample_Name") %>%
@@ -450,10 +452,9 @@ library(lmPerm)
 
 df_fgfr <- final_FGFR3
 
-names(df_fgfr) <- sub("(:[^:]+){2}$", "", names(df_fgfr))
-names(df_fgfr)[grep("^4",names(df_fgfr))] <-  paste0('chr',"",names(df_fgfr)[grep("^4",names(df_fgfr))])
-names(df_fgfr)[grep("^chr4",names(df_fgfr))] <- gsub(":","_",names(df_fgfr)[grep("^chr4",names(df_fgfr))])
-
+# names(df_fgfr) <- sub("(:[^:]+){2}$", "", names(df_fgfr))
+# names(df_fgfr)[grep("^4",names(df_fgfr))] <-  paste0('chr',"",names(df_fgfr)[grep("^4",names(df_fgfr))])
+# names(df_fgfr)[grep("^chr4",names(df_fgfr))] <- gsub(":","_",names(df_fgfr)[grep("^chr4",names(df_fgfr))])
 
 df_fgfr <- df_fgfr %>% 
   filter(!is.na(Predicted_Sex) & Predicted_Sex != "") %>%
@@ -466,56 +467,58 @@ df_fgfr$Predicted_Sex <- as.factor(df_fgfr$Predicted_Sex)
 df_fgfr$Ancestry <-as.factor(df_fgfr$Ancestry)
 
 
-#### Make SNP as 0,1,2 
+# ---- Make simple SNP -> (hg38 REF, hg38-aligned ALT) lookup ----
+complement_seq <- function(x) chartr("ATCG", "TAGC", x)
 
-# Iterate through SNP columns
+allele_lut <- final_data[, c("Clean_SNP_ID", "hg38_ref_base", "ALT", "Strand_Status")]
+allele_lut <- allele_lut[!duplicated(allele_lut$Clean_SNP_ID), ]
+
+allele_lut$ALT_hg38 <- allele_lut$ALT
+flip <- allele_lut$Strand_Status == "Reverse/Flipped" &
+  !is.na(allele_lut$ALT) & nchar(allele_lut$ALT) == 1
+allele_lut$ALT_hg38[flip] <- complement_seq(allele_lut$ALT[flip])
+
+
+#### Make SNP dosage as 0/1/2 = number of ALT alleles (hg38 aligned)
+
 for (i in names(df_fgfr)[17:ncol(df_fgfr)]) {
   
-  #i <- "4:1763224:G:C"
+  # Fallback map for VCF REF/ALT (used only if Strand_Status == "Mismatch")
+  vcf_map <- final_data[, c("Clean_SNP_ID", "REF", "ALT")]
+  vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
+  
+  # i <- "rs1665366"
   n1 <- paste0(i, "_add")
   
-  # 1. Create frequency table and ensure it's a clean data frame
-  tp1 <- table(df_fgfr[[i]], useNA = "no")
-  if (length(tp1) == 0) next # Skip if column is empty
+  idx <- match(i, allele_lut$Clean_SNP_ID)
+  if (is.na(idx)) next
   
-  tp1 <- as.data.frame(tp1, stringsAsFactors = FALSE)
-  colnames(tp1) <- c("Genotype", "Freq")
+  REF_use <- allele_lut$hg38_ref_base[idx]
+  ALT_use <- allele_lut$ALT_hg38[idx]
   
-  # 2. Split Genotype into Alleles (e.g., "G/G" -> "G", "G")
-  tp1 <- tp1 %>%
-    tidyr::separate(Genotype, into = c("A1", "A2"), sep = "/", 
-                    fill = "right", extra = "merge", remove = FALSE)
-  
-  # 3. Identify Homozygotes (where Allele 1 == Allele 2)
-  # We handle the case where A2 might be NA (e.g. if genotype was just "G")
-  SAMEGT <- tp1 %>% 
-    filter(!is.na(A1) & !is.na(A2) & A1 == A2) %>%
-    arrange(Freq) # Sort by frequency (Ascending: Minor first)
-  
-  # 4. Identify Heterozygotes (anything not in SAMEGT)
-  tp_left <- anti_join(tp1, SAMEGT, by = "Genotype")
-  
-  # 5. Recode based on the number of homozygotes found
-  if (nrow(SAMEGT) == 2) {
-    # Typical case: 2 homozygotes (0 and 2) and 1 heterozygote (1)
-    recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0; '", 
-                         SAMEGT$Genotype[2], "'=2; '", 
-                         tp_left$Genotype[1], "'=1")
-    df_fgfr[[n1]] <- car::recode(df_fgfr[[i]], recode_str)
-    
-  } else if (nrow(SAMEGT) == 1) {
-    # Case with only 1 homozygote (recode to 0) and potentially 1 heterozygote (recode to 1)
-    if (nrow(tp_left) >= 1) {
-      recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0; '", tp_left$Genotype[1], "'=1")
-    } else {
-      recode_str <- paste0("'", SAMEGT$Genotype[1], "'=0")
+  # If mismatch, use original VCF REF/ALT instead
+  if (allele_lut$Strand_Status[idx] == "Mismatch") {
+    idx2 <- match(i, vcf_map$Clean_SNP_ID)
+    if (!is.na(idx2)) {
+      REF_use <- vcf_map$REF[idx2]
+      ALT_use <- vcf_map$ALT[idx2]
     }
-    df_fgfr[[n1]] <- car::recode(df_fgfr[[i]], recode_str)
   }
+  
+  if (is.na(REF_use) || is.na(ALT_use) || REF_use == ALT_use) next
+  
+  df_fgfr[[n1]] <- dplyr::case_when(
+    df_fgfr[[i]] == paste0(REF_use, "/", REF_use) ~ 0,
+    df_fgfr[[i]] %in% c(paste0(REF_use, "/", ALT_use), paste0(ALT_use, "/", REF_use)) ~ 1,
+    df_fgfr[[i]] == paste0(ALT_use, "/", ALT_use) ~ 2,
+    TRUE ~ NA_real_
+  )
 }
 
 
+
 df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:16],setdiff(names(df_fgfr),names(df_fgfr)[1:16]) %>% sort())]
+
 
 #############################
 
@@ -535,8 +538,10 @@ inputdf <- megdata$FGFR3
 ####################################################################
 
 # use the saved file 
+#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k.csv')
 
-inputdf <- read.csv('../FGFR3_isoform_TMM_INT.snp_500k.csv')
+inputdf <- df_fgfr
+
 str(inputdf)
 
 inputdf$Predicted_Sex <- factor(inputdf$Predicted_Sex)
@@ -545,18 +550,6 @@ inputdf$Ancestry <- factor(inputdf$Ancestry)
 df.out <- data.frame()
 df_count.summary <- data.frame()
 # 
-# ---- Make simple SNP -> (hg38 REF, hg38-aligned ALT) lookup ----
-complement_seq <- function(x) chartr("ATCG", "TAGC", x)
-
-allele_map <- final_data[, c("Clean_SNP_ID", "hg38_ref_base", "ALT", "Strand_Status")]
-allele_map <- allele_map[!duplicated(allele_map$Clean_SNP_ID), ]
-
-# ALT aligned to hg38 forward strand (only for single-base ALT)
-allele_map$ALT_out <- allele_map$ALT
-flip <- allele_map$Strand_Status == "Reverse/Flipped" &
-  !is.na(allele_map$ALT) & nchar(allele_map$ALT) == 1
-allele_map$ALT_out[flip] <- complement_seq(allele_map$ALT[flip])
-
 
 
 
@@ -565,9 +558,9 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   snp_id <- gsub("_add", "", i)   # "rs62286992"
   
-  m <- allele_map[match(snp_id, allele_map$Clean_SNP_ID), ]
+  m <- allele_lut[match(snp_id, allele_lut$Clean_SNP_ID), ]
   REF <- m$hg38_ref_base
-  ALT <- m$ALT_out
+  ALT <- m$ALT_hg38
   Strand_Status <- m$Strand_Status
   
   
@@ -610,7 +603,7 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   for(j in names(inputdf)[c(10,16,11)]){
     
-    # j <- "ENST00000481110_FGFR3IIIc"
+    # j <- "ENST00000481110"
     
     
     # Filter the data to exclude rows where the SNP dosage is 0
@@ -653,10 +646,9 @@ for (i in grep("_add",names(inputdf),value = T)){
     
     #prm <- lmp(fmla_un, data = filtered_0_1_2_only, perm = "Prob")
     #prm_adj <- lmp(fmla_adj, data = filtered_0_1_2_only, perm = "Prob")
-    
     # Calculate the number of non-zero samples in j where i is not NA
-    
     # use this since the lm() is done based on the sample inculde GT
+    
     non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
     
     # non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
@@ -664,13 +656,6 @@ for (i in grep("_add",names(inputdf),value = T)){
     # Calculate mean values for SNP dosages 1 and 2
     # mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
     # mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
-    
-    model_un = paste0(formula(fit_un)[2],"~",formula(fit_un)[3]),
-    model_adj1 = paste0(formula(fit_adj1)[2],"~",formula(fit_adj)[3]),
-    model_adj2 = paste0(formula(fit_adj2)[2],"~",formula(fit_adj_3)[3]),
-    model_adj_int1 = paste0(formula(fit_adj_int1)[2],"~",formula(fit_adj_2)[3]),
-    model_adj_int2 = paste0(formula(fit_adj_int2)[2],"~",formula(fit_adj_4)[3]),
-    
     
     # create temporary data frame
     df.lm <- data.frame(
@@ -708,22 +693,22 @@ for (i in grep("_add",names(inputdf),value = T)){
       #  return(NA)}),
       
       # Main effects (wrapped in tryCatch to prevent loop breaks)
-      p.value_un = tryCatch(coef(summary(fit_un))[2,4], error = function(e) NA),
-      beta_un = tryCatch(round(coef(summary(fit_un))[2,1], 4), error = function(e) NA),
+      p.value_un = tryCatch(coef(summary(fit_un))[2,4]%>% round(.,3), error = function(e) NA),
+      beta_un = tryCatch(round(coef(summary(fit_un))[2,1], 3), error = function(e) NA),
       
       #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
       
-      p.value_adj1 = coef(summary(fit_adj1))[2,4],
-      beta_adj1 = coef(summary(fit_adj1))[2,1],
+      p.value_adj1 = coef(summary(fit_adj1))[2,4]%>% round(.,3),
+      beta_adj1 = coef(summary(fit_adj1))[2,1]%>% round(.,3),
       
       # StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4),
       # p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
       
-      p.value_adj2 = coef(summary(fit_adj2))[2,4],
-      beta_adj2 = coef(summary(fit_adj2))[2,1],
+      p.value_adj2 = coef(summary(fit_adj2))[2,4] %>% round(.,3),
+      beta_adj2 = coef(summary(fit_adj2))[2,1]%>% round(.,3),
       
-      p.value_adj_int1 = tryCatch(coef(summary(fit_adj_int1))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int1)))), "Pr(>|t|)"],error = function(e) NA)[1],
-      p.value_adj_int2 = tryCatch(coef(summary(fit_adj_int2))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int2)))), "Pr(>|t|)"],error = function(e) NA)[1]
+      p.value_adj_int1 = tryCatch(coef(summary(fit_adj_int1))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int1)))), "Pr(>|t|)"]%>% round(.,3),error = function(e) NA)[1],
+      p.value_adj_int2 = tryCatch(coef(summary(fit_adj_int2))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int2)))), "Pr(>|t|)"]%>% round(.,3),error = function(e) NA)[1]
       
     )
     
@@ -734,3 +719,4 @@ for (i in grep("_add",names(inputdf),value = T)){
     
   }
 }
+
