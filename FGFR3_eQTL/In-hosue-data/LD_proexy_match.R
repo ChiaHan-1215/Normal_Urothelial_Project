@@ -24,7 +24,7 @@ library(dplyr)
 setwd('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/LD_proxy_files/')
 
 # read in house data
-Indf <- read.csv('../FGFR3_isoform_TMM_INT.snp_500k.csv')
+Indf <- read.csv('../FGFR3_isoform_TMM_INT.snp_500k_v2.csv')
 
 Our_target <- names(Indf) %>% grep('chr4_[0-9+]+$|rs[0-9]+$',.,value = T) %>% as.data.frame()
 names(Our_target) <- "Coord"
@@ -35,7 +35,6 @@ names(target_for_rsid) <- "RS_Number"
 
 cb_for_pos <- inner_join(Our_target %>% filter(!grepl("^rs[0-9]+$", Coord)),my_proxies,by = 'Coord')
 cb_for_pos <- cb_for_pos[,c(2,1,3,4:11)]
-
 cb_for_rsid <- inner_join(target_for_rsid,my_proxies,by = 'RS_Number')
 
 ff <- rbind(cb_for_pos,cb_for_rsid)
@@ -102,22 +101,22 @@ ff <- rbind(cb_for_pos,cb_for_rsid)
 
 # Extract the lm result to extract the SNPs that is in proxy data
 
-res_lm <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/lm_FGFR3_iso_TMM_INT_vs_SNPs_adj_int.csv')
-
-res_lm$snp <- gsub('_add','',res_lm$snp)
+res_lm <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/lm_FGFR3_iso_TPM_vs_SNPs_adj_int_v2.tsv')
 names(res_lm)[1] <- "RS_Number"
-
 res_lm_rsONLY <- res_lm[(grepl('rs',res_lm$RS_Number)),]
-
 res_lm_POS <- res_lm[!(grepl('rs',res_lm$RS_Number)),]
 
-
 COMBINE_rs <- inner_join(ff,res_lm_rsONLY,by = 'RS_Number')
+# 
+# SET1 <- ff %>% filter(!(RS_Number %in% unique(COMBINE_rs$RS_Number)))
+# names(SET1) 
+# SET1$RS_Number <- SET1$Coord
+# 
+# COMBINE_Pos <- inner_join(SET1,res_lm_POS,by = "RS_Number")
+#Final_data <- rbind(COMBINE_rs,COMBINE_Pos)
 
-SET1 <- ff %>% filter(!(RS_Number %in% unique(COMBINE_rs$RS_Number)))
-names(SET1) 
-SET1$RS_Number <- SET1$Coord
+# Now seperate risk and protective allele
+#  rs2896518-A risk
 
-COMBINE_Pos <- inner_join(SET1,res_lm_POS,by = "RS_Number")
 
-Final_data <- rbind(COMBINE_rs,COMBINE_Pos)
+
