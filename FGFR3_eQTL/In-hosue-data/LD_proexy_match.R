@@ -101,7 +101,7 @@ ff <- rbind(cb_for_pos,cb_for_rsid)
 
 # Extract the lm result to extract the SNPs that is in proxy data
 
-res_lm <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/lm_FGFR3_iso_TPM_vs_SNPs_adj_int_v2.tsv')
+res_lm <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/lm_FGFR3_iso_TMM_INT_vs_SNPs_adj_int_v2.tsv')
 names(res_lm)[1] <- "RS_Number"
 res_lm_rsONLY <- res_lm[(grepl('rs',res_lm$RS_Number)),]
 res_lm_POS <- res_lm[!(grepl('rs',res_lm$RS_Number)),]
@@ -117,6 +117,12 @@ COMBINE_rs <- inner_join(ff,res_lm_rsONLY,by = 'RS_Number')
 
 # Now seperate risk and protective allele
 #  rs2896518-A risk
+library(stringr)
 
+COMBINE_rs <- COMBINE_rs %>%
+  mutate(
+    Correlated_risk    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
+    Correlated_protect = str_extract(Correlated_Alleles, "(?<=G=).+")
+  )  %>% relocate(Correlated_risk,Correlated_protect,.before = variable)
 
 
