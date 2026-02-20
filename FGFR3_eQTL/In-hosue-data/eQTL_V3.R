@@ -479,15 +479,18 @@ flip <- allele_lut$Strand_Status == "Reverse/Flipped" &
 allele_lut$ALT_hg38[flip] <- complement_seq(allele_lut$ALT[flip])
 
 
+
+# Fallback map for VCF REF/ALT (used only if Strand_Status == "Mismatch")
+vcf_map <- final_data[, c("Clean_SNP_ID", "REF", "ALT")]
+vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
+
+
 #### Make SNP dosage as 0/1/2 = number of ALT alleles (hg38 aligned)
 
 for (i in names(df_fgfr)[17:ncol(df_fgfr)]) {
   
-  # Fallback map for VCF REF/ALT (used only if Strand_Status == "Mismatch")
-  vcf_map <- final_data[, c("Clean_SNP_ID", "REF", "ALT")]
-  vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
   
-  # i <- "rs1665366"
+  # i <- "rs7663492"
   n1 <- paste0(i, "_add")
   
   idx <- match(i, allele_lut$Clean_SNP_ID)
@@ -538,7 +541,7 @@ inputdf <- megdata$FGFR3
 ####################################################################
 
 # use the saved file 
-#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k.csv')
+#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k_v2.csv')
 
 inputdf <- df_fgfr
 
@@ -553,14 +556,28 @@ df_count.summary <- data.frame()
 
 
 
+
+
 for (i in grep("_add",names(inputdf),value = T)){
   # i <- "rs62286992_add"
   
   snp_id <- gsub("_add", "", i)   # "rs62286992"
   
   m <- allele_lut[match(snp_id, allele_lut$Clean_SNP_ID), ]
-  REF <- m$hg38_ref_base
-  ALT <- m$ALT_hg38
+  
+  # If mismatch, use original VCF REF/ALT instead
+  if (m$Strand_Status == "Mismatch") {
+    
+    idx2 <- match(snp_id, vcf_map$Clean_SNP_ID)
+    REF <- vcf_map$REF[idx2]
+    ALT <- vcf_map$ALT[idx2]} else {
+      
+      REF <- m$hg38_ref_base
+      ALT <- m$ALT_hg38
+      
+    }
+  
+  
   Strand_Status <- m$Strand_Status
   
   
@@ -719,4 +736,3 @@ for (i in grep("_add",names(inputdf),value = T)){
     
   }
 }
-
