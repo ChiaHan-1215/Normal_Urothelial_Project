@@ -426,6 +426,7 @@ names(RIN) <- c("Sample_Name","RIN_score")
 # replace NA RIN score to the lowest 
 # Method 1: Simple replacement
 RIN$RIN_score[is.na(RIN$RIN_score)] <- min(RIN$RIN_score, na.rm = TRUE)
+RIN$Sample_Name[23] <- "VR_35_D"
 
 
 gt_sample_man_sub <- gt_sample_man_sub %>%
