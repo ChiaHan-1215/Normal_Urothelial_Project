@@ -73,3 +73,57 @@ bcftools norm -d all -Oz -o FGFR3.unique.vcf.gz FGFR3.sub.vcf.gz
 bcftools index -t FGFR3.unique.vcf.gz
 
 echo "Process Complete. Final output: FGFR3.unique.vcf.gz"
+
+```
+
+### Full Version to correct the flip GT from GDC pipeline
+
+```
+plink2 --bfile ../samples \
+  --fa hg38.fa \
+  --output-chr chr26 \
+  --chr 1-22,X,Y \
+  --export vcf bgz \
+  --out step1_raw
+
+bcftools sort step1_raw.vcf.gz -Oz -o step2_sorted.vcf.gz
+bcftools index -t step2_sorted.vcf.gz
+
+
+# This fixes the 57% mismatch you saw earlier
+bcftools +fixref step2_sorted.vcf.gz -Oz -o step3_fixed.vcf.gz -- \
+  -f hg38.fa \
+  -d dbsnp_hg38.vcf.gz \
+  -m flip
+  
+bcftools index -t step3_fixed.vcf.gz
+
+# 1. Normalize and save to a temporary file
+bcftools norm -f hg38.fa -m -both step3_fixed.vcf.gz -Oz -o step3_norm.vcf.gz
+
+# 2. Index the normalized file (Crucial step!)
+bcftools index -t step3_norm.vcf.gz
+
+# 3. Annotate using the saved file
+bcftools annotate -a dbsnp_hg38_chr.vcf.gz \
+  -c ID \
+  -Oz -o step4_annotated.vcf.gz \
+  step3_norm.vcf.gz
+
+bcftools annotate --set-id '%ID:%REF:%ALT' \
+  -Oz -o step5_final_ids.vcf.gz \
+  step4_annotated.vcf.gz
+
+bcftools index -t step5_final_ids.vcf.gz
+
+# THEN extract FGFR3
+
+
+```
+
+
+
+
+
+
+
