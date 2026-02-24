@@ -1093,3 +1093,64 @@ for (i in grep("_add",names(inputdf),value = T)){
   }
 }
 
+#######
+
+
+## Get the proxy from LD-link R package, find the SNP that exist in the proxy data
+# Use LDlinkR to extract SNP proxy
+
+library(LDlinkR)
+
+
+# EUR hg38 coord 
+
+my_proxies <- LDproxy(snp = "rs2896518", 
+                      pop = "EUR", 
+                      r2d = "r2", 
+                      token = "c22a071b5bda",genome_build = "grch38_high_coverage",win_size = 500000
+)
+
+
+my_proxies$Coord <- gsub(':','_',my_proxies$Coord)
+
+# Download LD proxy output, extract the GT from In-house data and see how many GT are exist in the porxy output
+
+
+library(dplyr)
+
+# read in house data
+Indf <- inputdf
+
+Our_target <- names(Indf) %>% grep('chr4_[0-9+]+$|rs[0-9]+$',.,value = T) %>% as.data.frame()
+names(Our_target) <- "Coord"
+
+target_for_rsid <- Our_target %>% filter(grepl("^rs[0-9]+$", Coord))
+names(target_for_rsid) <- "RS_Number"
+cb_for_rsid <- inner_join(target_for_rsid,my_proxies,by = 'RS_Number')
+
+ff <- rbind(cb_for_pos,cb_for_rsid)
+
+# Extract the lm result to extract the SNPs that is in proxy data
+
+# res_lm <- read.delim('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/lm_res/')
+
+res_lm <- df.out
+
+names(res_lm)[1] <- "RS_Number"
+
+res_lm_rsONLY <- res_lm[(grepl('rs',res_lm$RS_Number)),]
+
+COMBINE_rs <- inner_join(ff,res_lm_rsONLY,by = 'RS_Number')
+
+library(stringr)
+
+COMBINE_rs <- COMBINE_rs %>%
+  mutate(
+    Correlated_risk    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
+    Correlated_protect = str_extract(Correlated_Alleles, "(?<=G=).+")
+  )  %>% relocate(Correlated_risk,Correlated_protect,.before = variable)
+
+
+
+                                  
+
