@@ -81,7 +81,7 @@ echo "Process Complete. Final output: FGFR3.unique.vcf.gz"
 ```
 plink2 --bfile ../samples \
   --fa hg38.fa \
-  --output-chr chr26 \
+  --output-chr chrM \
   --chr 1-22,X,Y \
   --export vcf bgz \
   --out step1_raw
