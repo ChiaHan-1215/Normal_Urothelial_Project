@@ -78,7 +78,7 @@ txi <- tximport(
   txOut = T)
 
 # get the rawcounts
-expected_counts <- txi$counts
+# expected_counts <- txi$counts
 # get the TPMs
 # expected_counts <- txi$abundance
 
@@ -217,7 +217,7 @@ qnorm.DeseqNC.set <- final_normalized
 # cts <- as.data.frame(cts)
 # # add gene annotation back (NO hard-coded 349/348)
 # cts$GENEID <- rownames(cts)
-# cts$GENESYMBOL <- expected_counts$GENESYMBOL[match(cts$GENEID,
+#cts$GENESYMBOL <- expected_counts$GENESYMBOL[match(cts$GENEID,
 #                                                    expected_counts$GENEID)]
 # # order columns: gene info first, then samples
 # cts <- cts[, c("GENESYMBOL", "GENEID", colnames(cts)[1:114])]
@@ -240,7 +240,7 @@ library(biomaRt)
 
 #vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_500k_uniq.vcf.gz"
 #vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.unique.vcf.gz"
-
+#vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.500k.SUBs.sub.V2.vcf.gz"
 vcf.file.tmp <- read.vcfR(vcf_path)
 
 fix_df <- as.data.frame(getFIX(vcf.file.tmp))
@@ -527,12 +527,10 @@ df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:16],setdiff(names(df_fgfr),names(df_fgfr)
 #############################
 
 # Can make metadata list 
-
-megdata <- list()
-
-megdata[["FGFR3"]] <- df_fgfr
-
-inputdf <- megdata$FGFR3  
+# 
+# megdata <- list()
+# megdata[["FGFR3"]] <- df_fgfr
+#inputdf <- megdata$FGFR3  
 
 
 ####################################################################
@@ -542,359 +540,10 @@ inputdf <- megdata$FGFR3
 ####################################################################
 
 # use the saved file 
-#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k_v2.csv')
-
-inputdf <- df_fgfr
-
-str(inputdf)
-
-inputdf$Predicted_Sex <- factor(inputdf$Predicted_Sex)
-inputdf$Ancestry <- factor(inputdf$Ancestry)
-
-df.out <- data.frame()
-df_count.summary <- data.frame()
-# 
-
-
-
-
-
-for (i in grep("_add",names(inputdf),value = T)){
-  # i <- "rs62286992_add"
-  
-  snp_id <- gsub("_add", "", i)   # "rs62286992"
-  
-  m <- allele_lut[match(snp_id, allele_lut$Clean_SNP_ID), ]
-  
-  # If mismatch, use original VCF REF/ALT instead
-  if (m$Strand_Status == "Mismatch") {
-    
-    idx2 <- match(snp_id, vcf_map$Clean_SNP_ID)
-    REF <- vcf_map$REF[idx2]
-    ALT <- vcf_map$ALT[idx2]} else {
-      
-      REF <- m$hg38_ref_base
-      ALT <- m$ALT_hg38
-      
-    }
-  
-  
-  Strand_Status <- m$Strand_Status
-  
-  
-  
-  
-  function.names <- c("max", "min", "mean", "median", "sd")
-  
-  for ( k in function.names ) {
-    # k <- function.names[3]
-    # the all the TPM in all tissue
-    # consider dealing with NA
-    
-    # & inputdf[[i]] != 0
-    # names(inputdf[6:135]
-    
-    # remove SNPs that are NA and empty
-    df.tmp <- inputdf[,c(names(inputdf[4]), gsub("_add", "", i))] %>%
-      filter(!is.na(inputdf[[gsub("_add", "", i)]]) & inputdf[[gsub("_add", "", i)]] != ""  ) %>%
-      group_by(get(noquote(gsub("_add", "", i)))) %>%
-      dplyr::summarise(across(where(is.numeric), get(k), na.rm=TRUE)) %>%
-      data.frame()
-    
-    df.tmp$variable <- i
-    df.tmp$stat <- k
-    
-    df.tmp <- df.tmp %>% dplyr::select(c("stat", "variable", everything())) 
-    names(df.tmp)[3] <- "genotype"
-    
-    df_count.summary <- rbind(df_count.summary, df.tmp)
-    df_count.summary[] <- lapply(df_count.summary, function(x) if(is.numeric(x)) round(x, 2) else x)
-    
-    
-    
-    
-  }
-  
-  
-  
-  # names(inputdf[6:135]
-  
-  for(j in names(inputdf)[c(10,16,11)]){
-    
-    # j <- "ENST00000481110"
-    
-    
-    # Filter the data to exclude rows where the SNP dosage is 0
-    filtered_0_1_2_only <- inputdf %>% filter(inputdf[[i]] %in% c(0, 1, 2))
-    
-    # counting GT of how many sample 
-    GT.count <- filtered_0_1_2_only
-    
-    GT.count.0a <- GT.count[ which(GT.count[,i] == 0), ]
-    GT.count.0b <- as.character(unique(GT.count.0a[gsub("_add", "", i)]))
-    GT.count.1a <- GT.count[ which(GT.count[,i] == 1), ]
-    GT.count.1b <- as.character(unique(GT.count.1a[gsub("_add", "", i)]))
-    GT.count.2a <- GT.count[ which(GT.count[,i] == 2), ]
-    GT.count.2b <- as.character(unique(GT.count.2a[gsub("_add", "", i)]))
-    
-    # dynamically generate formula
-    fmla_un <- as.formula(paste0(j, "~" , i))
-    fmla_adj1 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex +  Ancestry + RIN_score"))
-    fmla_adj2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + AFR + EUR + ASN + RIN_score"))
-    fmla_adj_int1 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + Ancestry +",i,paste0("*Predicted_Sex"))) 
-    fmla_adj_int2 <- as.formula(paste0(j, "~" , i, " + Predicted_Sex + RIN_score + AFR + EUR + ASN + ",i,paste0("*Predicted_Sex")))
-    
-    
-    
-    ######################################################
-    ######### make 0 as 1, not sure we need here #########
-    # filtered_0_1_2_only <- filtered_0_1_2_only %>% mutate(!!i := ifelse(.[[i]] == 0, 1, .[[i]]))
-    ######################################################
-    
-    # fit lm model
-    fit_un <- lm(fmla_un, filtered_0_1_2_only)
-    fit_adj1 <- lm(fmla_adj1, filtered_0_1_2_only)
-    fit_adj2 <- lm(fmla_adj2, filtered_0_1_2_only)
-    fit_adj_int1 <- lm(fmla_adj_int1, filtered_0_1_2_only)
-    fit_adj_int2 <- lm(fmla_adj_int2, filtered_0_1_2_only)
-    
-    ########################################
-    # run permutation #
-    ########################################
-    
-    #prm <- lmp(fmla_un, data = filtered_0_1_2_only, perm = "Prob")
-    #prm_adj <- lmp(fmla_adj, data = filtered_0_1_2_only, perm = "Prob")
-    # Calculate the number of non-zero samples in j where i is not NA
-    # use this since the lm() is done based on the sample inculde GT
-    
-    non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
-    
-    # non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
-    
-    # Calculate mean values for SNP dosages 1 and 2
-    # mean_value_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2) 
-    # mean_value_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2) 
-    
-    # create temporary data frame
-    df.lm <- data.frame(
-      
-      snp = snp_id,
-      Strand_Status = Strand_Status,
-      REF = REF,
-      ALT = ALT,
-      variable = j,
-      sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
-      sample_over_zero = non_zero_count,
-      perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
-      
-      geno_0 = GT.count.0b,
-      geno_1 = GT.count.1b,
-      geno_2 = GT.count.2b,
-      
-      n_0 = nrow(GT.count.0a),
-      n_1 = nrow(GT.count.1a),
-      n_2 = nrow(GT.count.2a),
-      
-      #mean_value_0_and_1=mean_value_1,
-      #mean_value_2=mean_value_2,
-      
-      model_un = paste0(formula(fit_un)[2],"~",formula(fit_un)[3]),
-      model_adj1 = paste0(formula(fit_adj1)[2],"~",formula(fit_adj1)[3]),
-      model_adj2 = paste0(formula(fit_adj2)[2],"~",formula(fit_adj2)[3]),
-      model_adj_int1 = paste0(formula(fit_adj_int1)[2],"~",formula(fit_adj_int1)[3]),
-      model_adj_int2 = paste0(formula(fit_adj_int2)[2],"~",formula(fit_adj_int2)[3]),
-      
-      # add lm() result
-      
-      #p.prm = tryCatch({coef(summary(prm))[2,3]}, error=function(e){
-      #  print(paste0('error of NA'))
-      #  return(NA)}),
-      
-      # Main effects (wrapped in tryCatch to prevent loop breaks)
-      p.value_un = tryCatch(coef(summary(fit_un))[2,4]%>% round(.,3), error = function(e) NA),
-      beta_un = tryCatch(round(coef(summary(fit_un))[2,1], 3), error = function(e) NA),
-      
-      #StdEr = round(coef(summary(fit_un))[2,2], digits = 4),
-      
-      p.value_adj1 = coef(summary(fit_adj1))[2,4]%>% round(.,3),
-      beta_adj1 = coef(summary(fit_adj1))[2,1]%>% round(.,3),
-      
-      # StdEr_adj_sex_age = round(coef(summary(fit_adj))[2,2], digits = 4),
-      # p.prm_adj_sex_age = coef(summary(prm_adj))[2,3],
-      
-      p.value_adj2 = coef(summary(fit_adj2))[2,4] %>% round(.,3),
-      beta_adj2 = coef(summary(fit_adj2))[2,1]%>% round(.,3),
-      
-      p.value_adj_int1 = tryCatch(coef(summary(fit_adj_int1))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int1)))), "Pr(>|t|)"]%>% round(.,3),error = function(e) NA)[1],
-      p.value_adj_int2 = tryCatch(coef(summary(fit_adj_int2))[grep(paste0("^",i, ":"), rownames(coef(summary(fit_adj_int2)))), "Pr(>|t|)"]%>% round(.,3),error = function(e) NA)[1]
-      
-    )
-    
-    # bind rows of temporary data frame to the results data frame
-    
-    df.out <- rbind(df.out, df.lm)
-    
-    
-  }
-}
-
-
-
-############# NEW #########
-
-
-library(dplyr)
-library(tximport)
-library(BSgenome.Hsapiens.UCSC.hg38)
-library(EnsDb.Hsapiens.v86)
-library(xlsx)
-library(edgeR)
-
-vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.SUBJECT.500k.unique.vcf.gz"
-#vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.unique.vcf.gz"
-
-
-vcf.file.tmp <- read.vcfR(vcf_path)
-
-fix_df <- as.data.frame(getFIX(vcf.file.tmp))
-vcf_genotypes.tmp <- extract.gt(
-  vcf.file.tmp, element = "GT", return.alleles = TRUE,
-  IDtoRowNames = TRUE, convertNA = TRUE
-)
-
-geno_with_pos <- cbind(
-  CHR    = as.character(fix_df$CHROM),
-  POS    = as.integer(fix_df$POS),
-  SNP_ID = as.character(fix_df$ID),
-  REF    = as.character(fix_df$REF),
-  ALT    = as.character(fix_df$ALT),
-  as.data.frame(vcf_genotypes.tmp, check.names = FALSE)
-)
-
-# As the GT data from GDCconfluence may be flipped and differ from dbSNP, need to adjust
-
-# ==============================================================================
-# dbSNP155 (GRCh38) rsID + hg38 strand check + optional genotype flip (OFFLINE)
-# Replace your old BIOMART block with this entire section
-# ==============================================================================
-
-library(dplyr)
-library(GenomicRanges)
-library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
-library(BSgenome.Hsapiens.UCSC.hg38)
-
-# SNPlocs.Hsapiens.dbSNP155.GRCh38 uses NCBI style: "1", "2", ... not "chr1"
-geno_with_pos$CHR <- gsub("^chr", "", geno_with_pos$CHR, ignore.case = TRUE)
-
-# ---- 2) Add rsIDs from dbSNP155 by CHR+POS ----
-gr <- GRanges(
-  seqnames = geno_with_pos$CHR,
-  ranges   = IRanges(start = geno_with_pos$POS, end = geno_with_pos$POS)
-)
-
-locs <- snpsByOverlaps(SNPlocs.Hsapiens.dbSNP155.GRCh38, gr)
-
-
-snp_results <- data.frame(
-  CHR       = as.character(seqnames(locs)),
-  POS       = start(locs),
-  refsnp_id = paste0(as.character(mcols(locs)$RefSNP_id)),
-  stringsAsFactors = FALSE
-)
-
-# keep one rsID per CHR:POS (dbSNP can return multiple)
-snp_results <- snp_results[!duplicated(paste(snp_results$CHR, snp_results$POS, sep=":")), ]
-
-
-# ---- 3) Merge rsIDs onto your VCF-derived table ----
-final_data <- dplyr::left_join(
-  geno_with_pos,
-  snp_results,
-  by = c("CHR", "POS"))
-
-final_data$Clean_SNP_ID <- ifelse(!is.na(final_data$refsnp_id),
-                                  final_data$refsnp_id,
-                                  final_data$SNP_ID)
-
-
-# ---- 4) Strand check vs hg38 reference (authoritative) ----
-complement_seq <- function(x) chartr("ATCG", "TAGC", x)
-
-final_data$CHR <- paste0('chr',"",final_data$CHR)
-
-hg38_ref <- getSeq(
-  BSgenome.Hsapiens.UCSC.hg38,
-  names = final_data$CHR,
-  start = final_data$POS,
-  end   = final_data$POS
-)
-
-final_data$hg38_ref_base <- as.character(hg38_ref)
-
-# Only meaningful for simple SNPs (single base REF)
-is_simple_snp <- !is.na(final_data$REF) & nchar(final_data$REF) == 1 & final_data$REF %in% c("A","C","G","T")
-
-final_data$Strand_Status <- "Unknown"
-final_data$Strand_Status[is_simple_snp & final_data$REF == final_data$hg38_ref_base] <- "Forward"
-final_data$Strand_Status[is_simple_snp & complement_seq(final_data$REF) == final_data$hg38_ref_base] <- "Reverse/Flipped"
-final_data$Strand_Status[is_simple_snp &
-                           !(final_data$REF == final_data$hg38_ref_base) &
-                           !(complement_seq(final_data$REF) == final_data$hg38_ref_base)] <- "Mismatch"
-
-# ---- 5) Optional: flip genotype allele strings when Reverse/Flipped (SNP-only) ----
-sample_names <- colnames(vcf_genotypes.tmp)
-
-is_snp_gt <- function(gt) !is.na(gt) && grepl("^[ACGT]/[ACGT]$", gt)
-
-for (sample in sample_names) {
-  final_data[[sample]] <- ifelse(
-    final_data$Strand_Status == "Reverse/Flipped" &
-      vapply(final_data[[sample]], is_snp_gt, logical(1)),
-    complement_seq(final_data[[sample]]),
-    final_data[[sample]]
-  )
-}
-
-# ---- 6) Final columns (metadata first, then samples) ----
-info_cols <- c("CHR", "POS", "SNP_ID", "Clean_SNP_ID", "REF", "ALT",
-               "hg38_ref_base", "Strand_Status")
-
-final_data <- final_data[, c(info_cols, sample_names)]
-
-
-
-# modified the sample name 
-# final_data <- geno_with_pos
-# Keep the final data that both REF and ALT are not NA
-final_data <- final_data %>%
-  dplyr::filter(!is.na(REF) & !is.na(ALT))
-
-
-####################################################################
-####################################################################
-################# NOW WE DO lm() ###################################
-####################################################################
-####################################################################
-
-allele_lut <- final_data[, c("Clean_SNP_ID", "hg38_ref_base", "ALT", "Strand_Status")]
-allele_lut <- allele_lut[!duplicated(allele_lut$Clean_SNP_ID), ]
-
-allele_lut$ALT_hg38 <- allele_lut$ALT
-flip <- allele_lut$Strand_Status == "Reverse/Flipped" &
-  !is.na(allele_lut$ALT) & nchar(allele_lut$ALT) == 1
-allele_lut$ALT_hg38[flip] <- complement_seq(allele_lut$ALT[flip])
-
-
-
-# Fallback map for VCF REF/ALT (used only if Strand_Status == "Mismatch")
-vcf_map <- final_data[, c("Clean_SNP_ID", "REF", "ALT")]
-vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
-
-
-# use the saved file 
-#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TPM.snp_500k_v3.csv')
-
-inputdf <- df_fgfr
+#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k_v3.csv')
+# inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TPM.snp_500k_v3.csv')
+# inputdf <- df_fgfr
+names(inputdf)[c(10,16,11)] <- c("FGFR3_IIIb","FGFR3_IIIc","FGFR3_IIIs")
 
 str(inputdf)
 
@@ -903,10 +552,6 @@ inputdf$Ancestry <- factor(inputdf$Ancestry)
 
 df.out <- data.frame()
 df_count.summary <- data.frame()
-# 
-
-
-
 
 
 for (i in grep("_add",names(inputdf),value = T)){
@@ -971,7 +616,7 @@ for (i in grep("_add",names(inputdf),value = T)){
   
   for(j in names(inputdf)[c(10,16,11)]){
     
-    # j <- "ENST00000481110"
+    # j <- "FGFR3-IIIb"
     
     
     # Filter the data to exclude rows where the SNP dosage is 0
@@ -1017,23 +662,23 @@ for (i in grep("_add",names(inputdf),value = T)){
     # Calculate the number of non-zero samples in j where i is not NA
     # use this since the lm() is done based on the sample inculde GT
     
-    non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
-    
+    #non_zero_count <- sum(filtered_0_1_2_only[[j]] != 0 & !is.na(filtered_0_1_2_only[[j]]))
     # non_zero_count <- sum(inputdf[[j]] != 0 & !is.na(inputdf[[j]]))
     
-
+    
     
     # create temporary data frame
     df.lm <- data.frame(
       
       snp = snp_id,
-      Strand_Status = Strand_Status,
+      # Strand_Status = Strand_Status,
       REF = REF,
       ALT = ALT,
       variable = j,
-      sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
-      sample_over_zero = non_zero_count,
-      perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
+      
+      #sample_used_in_analysis = length(filtered_0_1_2_only[[j]]),
+      #sample_over_zero = non_zero_count,
+      # perc_sample_over_zero = round((non_zero_count / length(filtered_0_1_2_only[[j]])) * 100,2),
       
       geno_0 = GT.count.0b,
       geno_1 = GT.count.1b,
@@ -1045,10 +690,10 @@ for (i in grep("_add",names(inputdf),value = T)){
       
       # Calculate mean values for SNP dosages 1 and 2
       
-      TPM_mean <- round(mean(filtered_0_1_2_only$FGFR3_total_TPM),2),
-      exp_geno_0 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 0) %>% pull(j), na.rm = TRUE),2),
-      exp_geno_1 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2),
-      exp_geno_2 <- round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2),
+      TPM_mean = round(mean(filtered_0_1_2_only$FGFR3_total_TPM),2),
+      exp_geno_0 = round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 0) %>% pull(j), na.rm = TRUE),2),
+      exp_geno_1 = round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 1) %>% pull(j), na.rm = TRUE),2),
+      exp_geno_2 = round(mean(filtered_0_1_2_only %>% filter(.[[i]] == 2) %>% pull(j), na.rm = TRUE),2),
       
       #mean_value_0_and_1=mean_value_1,
       #mean_value_2=mean_value_2,
@@ -1128,7 +773,7 @@ target_for_rsid <- Our_target %>% filter(grepl("^rs[0-9]+$", Coord))
 names(target_for_rsid) <- "RS_Number"
 cb_for_rsid <- inner_join(target_for_rsid,my_proxies,by = 'RS_Number')
 
-ff <- rbind(cb_for_pos,cb_for_rsid)
+
 
 # Extract the lm result to extract the SNPs that is in proxy data
 
@@ -1140,17 +785,16 @@ names(res_lm)[1] <- "RS_Number"
 
 res_lm_rsONLY <- res_lm[(grepl('rs',res_lm$RS_Number)),]
 
-COMBINE_rs <- inner_join(ff,res_lm_rsONLY,by = 'RS_Number')
+COMBINE_rs <- inner_join(cb_for_rsid,res_lm_rsONLY,by = 'RS_Number')
 
 library(stringr)
 
 COMBINE_rs <- COMBINE_rs %>%
   mutate(
-    Correlated_risk    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
-    Correlated_protect = str_extract(Correlated_Alleles, "(?<=G=).+")
-  )  %>% relocate(Correlated_risk,Correlated_protect,.before = variable)
+    risk.Correlated    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
+    protect.Correlated = str_extract(Correlated_Alleles, "(?<=G=).+")
+  )  %>% relocate(risk.Correlated,protect.Correlated,.before = variable)
 
 
 
-                                  
 
