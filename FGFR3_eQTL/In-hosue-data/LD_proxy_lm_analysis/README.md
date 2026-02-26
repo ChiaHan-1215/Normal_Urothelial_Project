@@ -389,13 +389,92 @@ vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
 
 ########*NEW Now load LD_proxy result so that we can chkec risk protect allele
 ########*
-########*
+## Get the proxy from LD-link R package, find the SNP that exist in the proxy data
+# Use LDlinkR to extract SNP proxy
+library(LDlinkR)
+library(stringr)
 
+# EUR hg38 coord 
+my_proxies <- LDproxy(snp = "rs2896518", 
+                      pop = "EUR", 
+                      r2d = "r2", 
+                      token = "c22a071b5bda",genome_build = "grch38_high_coverage",win_size = 500000
+)
 
+my_proxies$Coord <- gsub(':','_',my_proxies$Coord)
 
+my_proxies <- my_proxies %>%
+  mutate(
+    risk.Correlated    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
+    protect.Correlated = str_extract(Correlated_Alleles, "(?<=G=).+")
+  )  %>% relocate(risk.Correlated,protect.Correlated,.before = FORGEdb)
 
+# Select the SNPs that exist in the 
+Prox_SNP_list <- my_proxies$RS_Number %>% grep('rs',.,value = T)
 
+df_fgfr_prox <- df_fgfr[, c(names(df_fgfr)[1:16],
+                            intersect(names(df_fgfr), Prox_SNP_list))]
 
+# Now set rsik as 2 and protect as 0
+#### Make SNP dosage as 0/1/2 = number of ALT alleles (hg38 aligned)
+
+# ---- Create risk allele lookup ----
+risk_lut <- my_proxies %>%
+  dplyr::select(RS_Number, risk.Correlated, protect.Correlated) %>%
+  dplyr::distinct(RS_Number, .keep_all = TRUE)
+
+snp_cols <- names(df_fgfr_prox)[17:ncol(df_fgfr_prox)]
+
+for (i in snp_cols) {
+  #i <- "rs798727"
+  #i <- "rs2402494"
+  
+  n1 <- paste0(i, "_add")
+  
+  ridx <- match(i, risk_lut$RS_Number)
+  RISK_use <- if (!is.na(ridx)) risk_lut$risk.Correlated[ridx] else NA_character_
+  PROT_use <- if (!is.na(ridx)) risk_lut$protect.Correlated[ridx] else NA_character_
+  
+  # Fallback alleles from your hg38-aligned lookup
+  aidx <- match(i, allele_lut$Clean_SNP_ID)
+  if (is.na(aidx)) next
+  
+  REF_use <- allele_lut$hg38_ref_base[aidx]
+  ALT_use <- allele_lut$ALT_hg38[aidx]
+  
+  if (allele_lut$Strand_Status[aidx] == "Mismatch") {
+    vidx <- match(i, vcf_map$Clean_SNP_ID)
+    if (!is.na(vidx)) {
+      REF_use <- vcf_map$REF[vidx]
+      ALT_use <- vcf_map$ALT[vidx]
+    }
+  }
+  
+  if (is.na(REF_use) || is.na(ALT_use) || REF_use == ALT_use) next
+  
+  gt <- df_fgfr_prox[[i]]
+  
+  # --- Case 1: we have risk/protect from LDproxy -> risk dosage ---
+  if (!is.na(RISK_use) && !is.na(PROT_use)) {
+    df_fgfr_prox[[n1]] <- dplyr::case_when(
+      gt == paste0(PROT_use, "/", PROT_use) ~ 0,
+      gt %in% c(paste0(RISK_use, "/", PROT_use), paste0(PROT_use, "/", RISK_use)) ~ 1,
+      gt == paste0(RISK_use, "/", RISK_use) ~ 2,
+      TRUE ~ NA_real_
+    )
+    next
+  }
+  
+  # --- Case 2: missing risk/protect -> ALT dosage fallback ---
+  df_fgfr_prox[[n1]] <- dplyr::case_when(
+    gt == paste0(REF_use, "/", REF_use) ~ 0,
+    gt %in% c(paste0(REF_use, "/", ALT_use), paste0(ALT_use, "/", REF_use)) ~ 1,
+    gt == paste0(ALT_use, "/", ALT_use) ~ 2,
+    TRUE ~ NA_real_
+  )
+}
+
+df_fgfr_prox <- df_fgfr_prox[,c(names(df_fgfr_prox)[1:16],setdiff(names(df_fgfr_prox),names(df_fgfr_prox)[1:16]) %>% sort())]
 
 ########*NEW
 ########*
@@ -403,43 +482,6 @@ vcf_map <- vcf_map[!duplicated(vcf_map$Clean_SNP_ID), ]
 
 
 
-
-#### Make SNP dosage as 0/1/2 = number of ALT alleles (hg38 aligned)
-
-for (i in names(df_fgfr)[17:ncol(df_fgfr)]) {
-  
-  
-  # i <- "rs7663492"
-  n1 <- paste0(i, "_add")
-  
-  idx <- match(i, allele_lut$Clean_SNP_ID)
-  if (is.na(idx)) next
-  
-  REF_use <- allele_lut$hg38_ref_base[idx]
-  ALT_use <- allele_lut$ALT_hg38[idx]
-  
-  # If mismatch, use original VCF REF/ALT instead
-  if (allele_lut$Strand_Status[idx] == "Mismatch") {
-    idx2 <- match(i, vcf_map$Clean_SNP_ID)
-    if (!is.na(idx2)) {
-      REF_use <- vcf_map$REF[idx2]
-      ALT_use <- vcf_map$ALT[idx2]
-    }
-  }
-  
-  if (is.na(REF_use) || is.na(ALT_use) || REF_use == ALT_use) next
-  
-  df_fgfr[[n1]] <- dplyr::case_when(
-    df_fgfr[[i]] == paste0(REF_use, "/", REF_use) ~ 0,
-    df_fgfr[[i]] %in% c(paste0(REF_use, "/", ALT_use), paste0(ALT_use, "/", REF_use)) ~ 1,
-    df_fgfr[[i]] == paste0(ALT_use, "/", ALT_use) ~ 2,
-    TRUE ~ NA_real_
-  )
-}
-
-
-
-df_fgfr <- df_fgfr[,c(names(df_fgfr)[1:16],setdiff(names(df_fgfr),names(df_fgfr)[1:16]) %>% sort())]
 
 
 #############################
@@ -658,29 +700,6 @@ for (i in grep("_add",names(inputdf),value = T)){
 
 #######
 
-
-## Get the proxy from LD-link R package, find the SNP that exist in the proxy data
-# Use LDlinkR to extract SNP proxy
-
-library(LDlinkR)
-
-
-# EUR hg38 coord 
-
-my_proxies <- LDproxy(snp = "rs2896518", 
-                      pop = "EUR", 
-                      r2d = "r2", 
-                      token = "c22a071b5bda",genome_build = "grch38_high_coverage",win_size = 500000
-)
-
-
-my_proxies$Coord <- gsub(':','_',my_proxies$Coord)
-
-# Download LD proxy output, extract the GT from In-house data and see how many GT are exist in the porxy output
-
-
-library(dplyr)
-
 # read in house data
 Indf <- inputdf
 
@@ -712,9 +731,6 @@ COMBINE_rs <- COMBINE_rs %>%
     risk.Correlated    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
     protect.Correlated = str_extract(Correlated_Alleles, "(?<=G=).+")
   )  %>% relocate(risk.Correlated,protect.Correlated,.before = variable)
-
-
-
 
 
 
