@@ -794,9 +794,11 @@ for (i in gene) {
   BETA  <- rowi$beta_un
   
   # 2) build plotting data with correct x order
-  l.plot2 <- l.plot %>%
-    filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>%
-    mutate(!!sp := factor(.data[[sp]], levels = levs))
+  # filter rows
+  l.plot2 <- l.plot[!is.na(l.plot[[sp]]) & l.plot[[sp]] != "", ]
+  
+  # force genotype order
+  l.plot2[[sp]] <- factor(l.plot2[[sp]], levels = levs)
   
   # 3) counts + labels in the same order
   counts <- l.plot2 %>% count(.data[[sp]])
