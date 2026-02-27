@@ -783,38 +783,52 @@ plots <- list()
 gene <- c("FGFR3_IIIb","FGFR3_IIIc","FGFR3_IIIs")
 sp <- sig_snp[2]
 
+######
+
 for (i in gene){
   
-  # i <- "FGFR3_IIIb"
-  counts <- l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>%  group_by(.data[[sp]]) %>% summarise(n=n())
-  x_labels <- paste(counts[[sp]], "\n(n=", counts$n, ")", sep = "")
-  # y_max <- max(l.plot[[i]], na.rm = TRUE) + 0.25
-  P.VAL <- df.out %>% filter(snp==sp & variable == gene) %>% pull(p.value_un)
-  BETA <- df.out %>% filter(snp==sp & variable == gene) %>% pull(beta_un)
+  # get the genotype labels in the desired order for this SNP + gene
+  levs <- df.out %>%
+    filter(snp == sp, variable == i) %>%
+    transmute(levs = list(c(geno_0[1], geno_1[1], geno_2[1]))) %>%
+    pull(levs) %>%
+    .[[1]]
   
-  p <-l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>% 
+  l.plot2 <- l.plot %>%
+    filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>%
+    mutate(!!sp := factor(.data[[sp]], levels = levs))
+  
+  counts <- l.plot2 %>%
+    group_by(.data[[sp]]) %>%
+    summarise(n = n(), .groups = "drop")
+  
+  x_labels <- paste0(counts[[sp]], "\n(n=", counts$n, ")")
+  
+  P.VAL <- df.out %>% filter(snp==sp & variable==i) %>% pull(p.value_un)
+  BETA  <- df.out %>% filter(snp==sp & variable==i) %>% pull(beta_un)
+  
+  p <- l.plot2 %>%
     ggplot(aes(x = .data[[sp]], y = .data[[i]], fill = .data[[sp]])) +
-    geom_boxplot(
-      width=0.5,lwd = 0.5, 
-      outlier.shape=NA) + 
-    
-    scale_fill_manual(values = c("#F38491", "#6ECFF6", "#4197EC"),drop=F) +
-    
-    geom_point(shape = 1, size = 1.5, colour = "black",
-               position = position_jitterdodge(jitter.width = 0.2,dodge.width = 1)) +
-    # Add the mean point
-    stat_summary(fun = mean, geom = "point",
-                 position = position_dodge(width = 1),
-                 shape = 19, size = 1.5, colour = "red") + theme_classic() + 
+    geom_boxplot(width=0.5, lwd=0.5, outlier.shape=NA) +
+    scale_fill_manual(values=c("#4197EC","#6ECFF6","#F38491"), drop=FALSE) +
+    geom_point(shape=1, size=1.5, colour="black",
+               position=position_jitterdodge(jitter.width=0.2, dodge.width=1)) +
+    stat_summary(fun=mean, geom="point",
+                 position=position_dodge(width=1),
+                 shape=19, size=1.5, colour="red") +
+    theme_classic() +
     theme(axis.title.x=element_blank(),
-          axis.text.y = element_text(color = "black",size = 10),
-          axis.text.x = element_text(color = "black",size = 8,angle = 45, hjust = 1), 
-          axis.title.y =element_blank(),legend.position = "none",
-          plot.title = element_text(size = 10, face = "plain", color = "black")) + scale_x_discrete(labels = x_labels) +
-    ggtitle(paste0("Expression of ",i," vs ",sp,"\n","P-value:",P.VAL," beta:",BETA))
+          axis.text.y=element_text(color="black", size=10),
+          axis.text.x=element_text(color="black", size=8, angle=45, hjust=1),
+          axis.title.y=element_blank(),
+          legend.position="none",
+          plot.title=element_text(size=10, face="plain", color="black")) +
+    scale_x_discrete(labels = x_labels) +
+    ggtitle(paste0("Expression of ", i, " vs ", sp, "\n",
+                   "P-value:", P.VAL, " beta:", BETA)) +
+    ylim(c(-2, 2.5))
   
-  
-  #print(p)
   plots[[i]] <- p
-  
 }
+
+plots$FGFR3_IIIb | plots$FGFR3_IIIc | plots$FGFR3_IIIs
