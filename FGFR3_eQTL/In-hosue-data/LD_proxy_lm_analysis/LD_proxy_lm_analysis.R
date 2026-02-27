@@ -34,7 +34,7 @@ txi <- tximport(
 # get the rawcounts
 # expected_counts <- txi$counts
 # get the TPMs
-expected_counts <- txi$abundance
+# expected_counts <- txi$abundance
 
 # 1. Extract the unique Ensembl gene IDs you have
 gene_ids <- rownames(expected_counts)
@@ -100,15 +100,53 @@ rownames(cts) <- expected_counts$GENEID
 keep <- rowSums(cts) >= 10
 cts <- cts[keep, , drop = FALSE]
 
+
+###############################################################################################################
+# For Rawcount, follow GTEx v8-v10 version, they use TMM then do rank-based Inverse Normal Transformation (INT)
+# Extract from Oscar's script in GTEx_v10 folder in T-drive
+###############################################################################################################
+
+#Now get normalized count
+
+dge <- DGEList(counts = cts)
+
+# calculate normalization factors
+dge <- calcNormFactors(dge, method = "TMM")
+
+# get normalized counts
+normalized_counts <- cpm(dge)
+head(normalized_counts[1:10,1:10])
+dim(normalized_counts)
+
+# Set function
+inv_norm_transform <- function(x) {
+  qnorm((rank(x, na.last = "keep") - 0.5) / sum(!is.na(x)))
+}
+
+# apply inverse normal transform to each gene
+final_normalized <- t(apply(normalized_counts, 1, inv_norm_transform))
+final_normalized <- as.data.frame(final_normalized)
+
+# add gene annotation back (NO hard-coded 349/348)
+final_normalized$GENEID <- rownames(final_normalized)
+
+final_normalized$GENESYMBOL <- expected_counts$GENESYMBOL[match(final_normalized$GENEID,
+                                                                expected_counts$GENEID)]
+# order columns: gene info first, then samples
+final_normalized <- final_normalized[, c("GENESYMBOL", "GENEID", colnames(cts))]
+final_normalized <- final_normalized[,c(-2,-3)]
+# rename to fit the sctipt
+qnorm.DeseqNC.set <- final_normalized
+
 #####################################################################################
 ###################################  For merge TPM data  ############################
 #####################################################################################
 cts <- as.data.frame(cts)
-# add gene annotation back (NO hard-coded 349/348)
+#add gene annotation back (NO hard-coded 349/348)
 cts$GENEID <- rownames(cts)
 cts$GENESYMBOL <- expected_counts$GENESYMBOL[match(cts$GENEID,
-                                                   expected_counts$GENEID)]
-# order columns: gene info first, then samples
+                                                  expected_counts$GENEID)]
+#order columns: gene info first, then samples
 cts <- cts[, c("GENESYMBOL", "GENEID", colnames(cts)[1:114])]
 qnorm.DeseqNC.set <- cts
 
@@ -124,7 +162,7 @@ library(biomaRt)
 # ==============================================================================
 
 vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_500k_uniq.vcf.gz"
-#vcf_path <- "/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3.500k.SUBs.sub.V2.vcf.gz"
+
 
 vcf.file.tmp <- read.vcfR(vcf_path)
 fix_df <- as.data.frame(getFIX(vcf.file.tmp))
@@ -143,7 +181,6 @@ geno_with_pos <- cbind(
 )
 
 # As the GT data from GDCconfluence may be flipped and differ from dbSNP, need to adjust
-
 # ==============================================================================
 # dbSNP155 (GRCh38) rsID + hg38 strand check + optional genotype flip (OFFLINE)
 # Replace your old BIOMART block with this entire section
@@ -232,8 +269,8 @@ for (sample in sample_names) {
     final_data[[sample]]
   )
 }
-if 
-# ---- 6) Final columns (metadata first, then samples) ----
+
+ 
 info_cols <- c("CHR", "POS", "SNP_ID", "Clean_SNP_ID", "REF", "ALT",
                "hg38_ref_base", "Strand_Status")
 
@@ -402,6 +439,8 @@ my_proxies <- my_proxies %>%
 # Select the SNPs that exist in the 
 Prox_SNP_list <- my_proxies$RS_Number %>% grep('rs',.,value = T)
 
+# df_fgfr <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT_snps.500k.csv')
+
 df_fgfr_prox <- df_fgfr[, c(names(df_fgfr)[1:16],
                             intersect(names(df_fgfr), Prox_SNP_list))]
 
@@ -478,17 +517,17 @@ df_fgfr_prox <- df_fgfr_prox[,c(names(df_fgfr_prox)[1:16],setdiff(names(df_fgfr_
 ####################################################################
 
 # use the saved file 
-#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT.snp_500k_v3.csv')
-# inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TPM.snp_500k_v3.csv')
+#inputdf <- read.csv('/Volumes/ifs/DCEG/Branches/LTG/Prokunina/Victor_Normal_Urothelial_project/Project_FGFGR3/FGFR3_isoform_TMM_INT_snps.500k.csv')
+
 
 
 
 data_list <- list()
 data_list$Vict <- df_fgfr_prox[grep("VR",df_fgfr_prox$Sample_Name),]
-data_list$Tissue_piece <- df_fgfr_prox[grep("DS",df_fgfr_prox$Sample_Name),]
+data_list$DS_sample <- df_fgfr_prox[grep("DS",df_fgfr_prox$Sample_Name),]
 
-
-# inputdf <- data_list$Vict
+#inputdf <- data_list$Vict
+#inputdf <- data_list$DS_sample
 
 names(inputdf)[c(10,16,11)] <- c("FGFR3_IIIb","FGFR3_IIIc","FGFR3_IIIs")
 
@@ -712,14 +751,70 @@ COMBINE_rs <- inner_join(cb_for_rsid,res_lm_rsONLY,by = 'RS_Number')
 
 library(stringr)
 
-COMBINE_rs <- COMBINE_rs %>%
-  mutate(
-    risk.Correlated    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
-    protect.Correlated = str_extract(Correlated_Alleles, "(?<=G=).+")
-  )  %>% relocate(risk.Correlated,protect.Correlated,.before = variable)
+# COMBINE_rs <- COMBINE_rs %>%
+#   mutate(
+#     risk.Correlated    = str_extract(Correlated_Alleles, "(?<=A=)[^,]+"),
+#     protect.Correlated = str_extract(Correlated_Alleles, "(?<=G=).+")
+#   )  %>% relocate(risk.Correlated,protect.Correlated,.before = variable)
+# 
 
+#################################
+# the Boxplot 
+##################################
 
+# vln box plot for significant gene TPM with 17SNPs from lm result
+library(ggplot2)
+library(ggsci)
+library(ggrepel)
+library(cowplot)
+library(ggpubr)
+library(rstatix)
+library(dplyr)
+library(scales)
+library(patchwork)
 
-#### ALSO MAKE DOT BOX PLOT 
+sig_snp <- c('rs3752749','rs798767','rs12502758')
 
+l.plot <- inputdf %>% dplyr::select(Sample_Name,FGFR3_IIIb,FGFR3_IIIs,FGFR3_IIIc,Ancestry,rs3752749,rs3752749_add,rs798767,rs798767_add,rs12502758,rs12502758_add) 
 
+# cahnge order of rs111457485
+
+plots <- list()
+gene <- c("FGFR3_IIIb","FGFR3_IIIc","FGFR3_IIIs")
+sp <- sig_snp[2]
+
+for (i in gene){
+  
+  # i <- "FGFR3_IIIb"
+  counts <- l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>%  group_by(.data[[sp]]) %>% summarise(n=n())
+  x_labels <- paste(counts[[sp]], "\n(n=", counts$n, ")", sep = "")
+  # y_max <- max(l.plot[[i]], na.rm = TRUE) + 0.25
+  P.VAL <- df.out %>% filter(snp==sp & variable == gene) %>% pull(p.value_un)
+  BETA <- df.out %>% filter(snp==sp & variable == gene) %>% pull(beta_un)
+  
+  p <-l.plot %>% filter(!is.na(.data[[sp]]) & .data[[sp]] != "") %>% 
+    ggplot(aes(x = .data[[sp]], y = .data[[i]], fill = .data[[sp]])) +
+    geom_boxplot(
+      width=0.5,lwd = 0.5, 
+      outlier.shape=NA) + 
+    
+    scale_fill_manual(values = c("#F38491", "#6ECFF6", "#4197EC"),drop=F) +
+    
+    geom_point(shape = 1, size = 1.5, colour = "black",
+               position = position_jitterdodge(jitter.width = 0.2,dodge.width = 1)) +
+    # Add the mean point
+    stat_summary(fun = mean, geom = "point",
+                 position = position_dodge(width = 1),
+                 shape = 19, size = 1.5, colour = "red") + theme_classic() + 
+    theme(axis.title.x=element_blank(),
+          axis.text.y = element_text(color = "black",size = 10),
+          axis.text.x = element_text(color = "black",size = 8,angle = 45, hjust = 1), 
+          axis.title.y =element_blank(),legend.position = "none",
+          plot.title = element_text(size = 10, face = "plain", color = "black")) + scale_x_discrete(labels = x_labels) +
+    ggtitle(paste0("Expression of ",i," vs ",sp,"\n","P-value:",P.VAL," beta:",BETA))
+  
+  
+  #print(p)
+  plots[[i]] <- p
+  
+}
